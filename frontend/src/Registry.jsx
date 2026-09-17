@@ -172,13 +172,13 @@ export default function Registry({ type, records, customers, reload }) {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+    <div className="grid gap-6 lg:grid-cols-2 grid-cols-1">
       <form onSubmit={save} className="panel self-start space-y-6">
         <h2 className="mb-2">{company ? 'Datos de mi empresa' : `${form.id ? 'Editar' : 'Nuevo'} ${config.title}`}</h2>
         
         {company ? (
           <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <label>
                 <span className="block text-xs font-semibold text-slate-700 mb-1">Nombre del taller</span>
                 <input
@@ -237,7 +237,7 @@ export default function Registry({ type, records, customers, reload }) {
 
             <div className="border-t border-slate-200 pt-5">
               <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4">Imágenes Institucionales</h3>
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
                 <ImageField
                   id="file-logo"
                   label="Logo del taller (URL o subida)"
@@ -270,16 +270,17 @@ export default function Registry({ type, records, customers, reload }) {
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             {config.fields.map(([key, label, kind = 'text', required]) => (
-              <label key={key} className={kind === 'textarea' ? 'sm:col-span-2' : ''}>
+              <label key={key} className={kind === 'textarea' ? 'col-span-1 sm:col-span-2' : ''}>
                 <span className="block text-xs font-semibold text-slate-700 mb-1">{label}</span>
                 {kind === 'textarea' ? (
                   <textarea
                     value={form[key] ?? ''}
-                    rows={5}
+                    rows={4}
                     maxLength={10000}
                     className="w-full"
+                    placeholder="Descripción opcional..."
                     onChange={e => setForm({ ...form, [key]: e.target.value })}
                   />
                 ) : kind === 'category' || kind === 'customer' ? (
@@ -312,8 +313,8 @@ export default function Registry({ type, records, customers, reload }) {
         {error && <p role="alert" className="error">{error}</p>}
         {message && <p role="status" className="success">{message}</p>}
 
-        <div className="flex gap-3 pt-4 flex-wrap">
-          <button className="primary" disabled={busy}>
+        <div className="flex gap-3 pt-4 flex-wrap items-center">
+          <button className="primary min-w-[140px]" disabled={busy}>
             {busy ? 'Guardando…' : 'Guardar datos'}
           </button>
           {!company && form.id && (
