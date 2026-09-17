@@ -71,7 +71,7 @@ function Admin() {
   }
 
   async function reload() {
-    const keys = ['company', 'customers', 'vehicles', 'items', 'quotes'];
+    const keys = ['company', 'customers', 'vehicles', 'items', 'quotes', 'categories'];
     const values = await Promise.all(keys.map(key => api(`/${key}`)));
     setData(Object.fromEntries(keys.map((key, index) => [key, values[index]])));
   }
@@ -262,6 +262,7 @@ function Admin() {
           creating ? (
             <QuoteForm
               {...data}
+              categoriesList={data.categories || []}
               editingQuote={editingQuote}
               onCancel={() => { setCreating(false); setEditingQuote(null); }}
               onSaved={async q => {
@@ -477,7 +478,7 @@ function Admin() {
             </>
           )
         ) : (
-          <Registry key={tab} type={tab} records={data[tab]} customers={data.customers} reload={reload}/>
+          <Registry key={tab} type={tab} records={data[tab]} customers={data.customers} categoriesList={data.categories || []} reload={reload}/>
         )}
       </main>
     </div>

@@ -4,8 +4,9 @@ const text = z.string().trim().max(300);
 const required = text.min(1);
 const email = z.union([z.literal(''), z.string().email().max(254)]).default('');
 const money = z.coerce.number().finite().min(0).max(100000000).multipleOf(0.01);
-export const category = z.enum(['REPUESTO', 'INSUMO', 'MANO_OBRA']);
+export const category = z.string().trim().min(1).max(100);
 export const paymentMethod = z.enum(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA_DEBITO', 'TARJETA_CREDITO', 'CHEQUE', 'OTRO']);
+export const itemCategorySchema = z.object({ name: required });
 
 export const customerSchema = z.object({ name: required, taxId: required, address: text.default(''), phone: text.default(''), email });
 

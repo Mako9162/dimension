@@ -11,6 +11,7 @@ import { createCompanyRouter } from './routes/company.js';
 import { createCatalogRouter } from './routes/catalog.js';
 import { createQuotesRouter } from './routes/quotes.js';
 import { createUploadRouter } from './routes/upload.js';
+import { createCategoriesRouter } from './routes/categories.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +43,7 @@ export function createApp(db) {
   app.use('/api/auth', createAuthRouter(db));
   app.use('/api/company', createCompanyRouter(db));
   app.use('/api/upload', createUploadRouter());
+  app.use('/api/categories', createCategoriesRouter(db));
   app.use('/api', createCatalogRouter(db));
   app.use('/api/quotes', createQuotesRouter(db));
 

@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import Decimal from 'decimal.js';
-import { api, money, categories } from './api';
+import { api, money } from './api';
 
-export default function QuoteForm({ customers, vehicles, items, company, editingQuote, onSaved, onCancel }) {
+export default function QuoteForm({ customers, vehicles, items, categoriesList = [], company, editingQuote, onSaved, onCancel }) {
   const isEditing = Boolean(editingQuote);
+  const activeCategories = categoriesList.length
+    ? categoriesList.map(c => typeof c === 'string' ? c : c.name)
+    : ['Repuesto', 'Insumo', 'Mano de obra', 'Pintura', 'Desabolladura', 'Mecánica', 'Electricidad'];
+  const defaultCategory = activeCategories[0] || 'Mano de obra';
 
   const [customerId, setCustomer] = useState(editingQuote?.customerId || '');
   const [vehicleId, setVehicle] = useState(editingQuote?.vehicleId || '');
@@ -12,7 +16,7 @@ export default function QuoteForm({ customers, vehicles, items, company, editing
       key: crypto.randomUUID(),
       itemId: l.itemId || undefined,
       name: l.name || '',
-      category: l.category || 'MANO_OBRA',
+      category: l.category || defaultCategory,
       description: l.description || '',
       quantity: String(l.quantity),
       unitPrice: String(l.unitPrice)
@@ -31,7 +35,7 @@ export default function QuoteForm({ customers, vehicles, items, company, editing
   const tax = subtotal.mul(safe(taxRate)).div(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
 
   function add(item) {
-    setLines([...lines, { key: crypto.randomUUID(), itemId: item?.id, name: item?.name || '', category: item?.category || 'MANO_OBRA', description: item?.description || '', quantity: '1', unitPrice: item?.price || '0' }]);
+    setLines([...lines, { key: crypto.randomUUID(), itemId: item?.id, name: item?.name || '', category: item?.category || defaultCategory, description: item?.description || '', quantity: '1', unitPrice: item?.price || '0' }]);
   }
 
   function change(key, name, value) { setLines(lines.map(l => l.key === key ? { ...l, [name]: value } : l)); }
@@ -55,8 +59,8 @@ export default function QuoteForm({ customers, vehicles, items, company, editing
       {!customers.length && <p className="hint">Registra un cliente y su vehículo en las secciones correspondientes.</p>}
     </section>
     <section className="panel"><div className="section-title"><span className="step">02</span><div><h2>Detalle de trabajos</h2><p>Precios netos en pesos chilenos. Puedes ajustarlos para esta cotización.</p></div></div>
-      <div className="flex flex-wrap gap-3 mb-5"><select aria-label="Agregar desde catálogo" className="flex-1" value="" onChange={e => { const item = items.find(i => i.id === e.target.value); if (item) add(item); }}><option value="">+ Agregar desde el catálogo</option>{items.map(i => <option key={i.id} value={i.id}>{categories[i.category]} · {i.name} · {money(i.price)}</option>)}</select><button type="button" className="secondary" onClick={() => add()}>+ Ítem libre</button></div>
-      {!lines.length ? <div className="empty"><span>＋</span><h3>Comienza con el primer trabajo</h3><p>Agrega repuestos, insumos o mano de obra.</p></div> : <div className="table-wrap"><table className="editor"><thead><tr><th>Ítem / categoría</th><th>Cantidad</th><th>Precio neto</th><th>Total</th><th></th></tr></thead><tbody>{lines.map((l, index) => <tr key={l.key}><td>{l.itemId ? <><strong>{l.name}</strong><p>{categories[l.category]}</p></> : <><input aria-label={`Nombre ítem ${index + 1}`} required maxLength={300} placeholder="Descripción del trabajo" value={l.name} onChange={e => change(l.key, 'name', e.target.value)}/><select aria-label={`Categoría ítem ${index + 1}`} value={l.category} onChange={e => change(l.key, 'category', e.target.value)}>{Object.entries(categories).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></>}</td><td><input aria-label={`Cantidad ítem ${index + 1}`} type="number" required min="0.01" max="10000" step="0.01" value={l.quantity} onChange={e => change(l.key, 'quantity', e.target.value)}/></td><td><input aria-label={`Precio ítem ${index + 1}`} type="number" required min="0" max="100000000" step="0.01" value={l.unitPrice} onChange={e => change(l.key, 'unitPrice', e.target.value)}/></td><td className="whitespace-nowrap">{money(lineTotals[index])}</td><td><button type="button" className="remove" aria-label={`Eliminar ${l.name || 'ítem'}`} onClick={() => setLines(lines.filter(row => row.key !== l.key))}>×</button></td></tr>)}</tbody></table></div>}
+      <div className="flex flex-wrap gap-3 mb-5"><select aria-label="Agregar desde catálogo" className="flex-1" value="" onChange={e => { const item = items.find(i => i.id === e.target.value); if (item) add(item); }}><option value="">+ Agregar desde el catálogo</option>{items.map(i => <option key={i.id} value={i.id}>{i.category} · {i.name} · {money(i.price)}</option>)}</select><button type="button" className="secondary" onClick={() => add()}>+ Ítem libre</button></div>
+      {!lines.length ? <div className="empty"><span>＋</span><h3>Comienza con el primer trabajo</h3><p>Agrega repuestos, insumos o mano de obra.</p></div> : <div className="table-wrap"><table className="editor"><thead><tr><th>Ítem / categoría</th><th>Cantidad</th><th>Precio neto</th><th>Total</th><th></th></tr></thead><tbody>{lines.map((l, index) => <tr key={l.key}><td>{l.itemId ? <><strong>{l.name}</strong><p>{l.category}</p></> : <><input aria-label={`Nombre ítem ${index + 1}`} required maxLength={300} placeholder="Descripción del trabajo" value={l.name} onChange={e => change(l.key, 'name', e.target.value)}/><select aria-label={`Categoría ítem ${index + 1}`} value={l.category} onChange={e => change(l.key, 'category', e.target.value)}>{activeCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></>}</td><td><input aria-label={`Cantidad ítem ${index + 1}`} type="number" required min="0.01" max="10000" step="0.01" value={l.quantity} onChange={e => change(l.key, 'quantity', e.target.value)}/></td><td><input aria-label={`Precio ítem ${index + 1}`} type="number" required min="0" max="100000000" step="0.01" value={l.unitPrice} onChange={e => change(l.key, 'unitPrice', e.target.value)}/></td><td className="whitespace-nowrap">{money(lineTotals[index])}</td><td><button type="button" className="remove" aria-label={`Eliminar ${l.name || 'ítem'}`} onClick={() => setLines(lines.filter(row => row.key !== l.key))}>×</button></td></tr>)}</tbody></table></div>}
       <div className="totals"><p><span>Subtotal</span><b>{money(subtotal)}</b></p><label className="tax-field">IVA (%)<input aria-label="Porcentaje IVA" type="number" required min="0" max="100" step="0.01" value={taxRate} onChange={e => setTaxRate(e.target.value)}/><b>{money(tax)}</b></label><p className="grand-total"><span>Total CLP</span><b>{money(subtotal.plus(tax))}</b></p></div>
     </section>
     <section className="panel"><div className="section-title"><span className="step">03</span><h2>Información adicional</h2></div><div className="grid gap-5 md:grid-cols-2"><label>Observaciones de daños y plazo estimado<textarea rows={4} maxLength={10000} placeholder="Ej. Daño en parachoques delantero. Entrega estimada: 3 días hábiles." value={observations} onChange={e => setObservations(e.target.value)}/></label><label>Términos y condiciones<textarea rows={4} maxLength={10000} value={terms} onChange={e => setTerms(e.target.value)}/></label></div></section>

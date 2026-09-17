@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { api, categories, money } from './api';
+import { api, money } from './api';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import CategoryModal from './components/CategoryModal';
 import { confirmDelete, notifySuccess, notifyError } from './utils/alerts';
 
 const definitions = {
@@ -38,13 +39,16 @@ const definitions = {
   }
 };
 
-export default function Registry({ type, records, customers, reload }) {
+export default function Registry({ type, records, customers, categoriesList = [], reload }) {
   const company = type === 'company';
   const config = definitions[type] || {};
-  
+  const activeCatNames = categoriesList.length
+    ? categoriesList.map(c => typeof c === 'string' ? c : c.name)
+    : ['Repuesto', 'Insumo', 'Mano de obra', 'Pintura', 'Desabolladura', 'Mecánica', 'Electricidad'];
+
   const blank = () => company
     ? { name: '', ownerName: '', taxId: '', logoUrl: '', signatureUrl: '', address: '', phone: '', email: '', terms: '' }
-    : Object.fromEntries(config.fields.map(([key, , kind]) => [key, kind === 'category' ? 'MANO_OBRA' : '']));
+    : Object.fromEntries(config.fields.map(([key, , kind]) => [key, kind === 'category' ? (activeCatNames[0] || 'Repuesto') : '']));
 
   const [form, setForm] = useState(company ? records || blank() : blank());
   const [busy, setBusy] = useState(false);
@@ -52,6 +56,7 @@ export default function Registry({ type, records, customers, reload }) {
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   async function save(e) {
     e.preventDefault();
@@ -174,7 +179,18 @@ export default function Registry({ type, records, customers, reload }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2 grid-cols-1">
       <form onSubmit={save} className="panel self-start space-y-6">
-        <h2 className="mb-2">{company ? 'Datos de mi empresa' : `${form.id ? 'Editar' : 'Nuevo'} ${config.title}`}</h2>
+        <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+          <h2>{company ? 'Datos de mi empresa' : `${form.id ? 'Editar' : 'Nuevo'} ${config.title}`}</h2>
+          {type === 'items' && (
+            <button
+              type="button"
+              className="secondary text-xs"
+              onClick={() => setShowCategoryModal(true)}
+            >
+              🏷️ Administrar Categorías
+            </button>
+          )}
+        </div>
         
         {company ? (
           <div className="space-y-6">
@@ -289,10 +305,11 @@ export default function Registry({ type, records, customers, reload }) {
                     value={form[key] ?? ''}
                     onChange={e => setForm({ ...form, [key]: e.target.value })}
                   >
-                    <option value="">Seleccionar</option>
-                    {(kind === 'category' ? Object.entries(categories) : customers.map(c => [c.id, c.name])).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
+                    <option value="">Seleccionar {kind === 'category' ? 'categoría' : 'cliente'}</option>
+                    {kind === 'category'
+                      ? activeCatNames.map(name => <option key={name} value={name}>{name}</option>)
+                      : customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                    }
                   </select>
                 ) : (
                   <input
@@ -420,7 +437,7 @@ export default function Registry({ type, records, customers, reload }) {
                               {row.description && <p className="truncate max-w-[180px]">{row.description}</p>}
                             </td>
                             <td>
-                              <span className="badge">{categories[row.category]}</span>
+                              <span className="badge">{row.category}</span>
                             </td>
                             <td>
                               <strong>{money(row.price)}</strong>
@@ -509,6 +526,14 @@ export default function Registry({ type, records, customers, reload }) {
         <ChangePasswordModal
           onClose={() => setShowPasswordModal(false)}
           onSuccess={msg => setMessage(msg)}
+        />
+      )}
+
+      {showCategoryModal && (
+        <CategoryModal
+          categories={categoriesList}
+          reload={reload}
+          onClose={() => setShowCategoryModal(false)}
         />
       )}
     </div>

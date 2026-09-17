@@ -21,12 +21,10 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   @@index([expiresAt])
-}
-
-enum Category {
-  REPUESTO
-  INSUMO
-  MANO_OBRA
+}model ItemCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
 
 enum QuoteStatus {
@@ -90,7 +88,7 @@ model Item {
   id          String      @id @default(uuid()) @db.Uuid
   name        String
   description String      @default("")
-  category    Category
+  category    String
   cost        Decimal     @db.Decimal(14, 2)
   price       Decimal     @db.Decimal(14, 2)
   details     QuoteLine[]
@@ -131,7 +129,7 @@ model QuoteLine {
   position    Int
   name        String
   description String   @default("")
-  category    Category
+  category    String
   quantity    Decimal  @db.Decimal(10, 2)
   unitPrice   Decimal  @db.Decimal(14, 2)
   lineTotal   Decimal  @db.Decimal(14, 0)
