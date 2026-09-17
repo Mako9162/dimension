@@ -217,6 +217,11 @@ function Admin() {
         <span className="font-bold text-emerald-900 text-sm">{data?.company?.name || 'Mi Taller'}</span>
       </div>
 
+      <div
+        className={`sidebar-backdrop print-hidden ${mobileMenuOpen ? 'active' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
       <aside className={`sidebar print-hidden ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="brand">
           <img src="/brand/taller-dimension.png" alt="Taller Dimensión" className="sidebar-logo"/>
