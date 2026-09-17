@@ -25,4 +25,4 @@ ENV HOST=0.0.0.0
 
 EXPOSE 3001
 
-CMD ["node", "src/server.js"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node prisma/seed.js && node src/server.js"]
