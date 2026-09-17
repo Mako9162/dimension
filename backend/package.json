@@ -1,5 +1,7 @@
 {
-  "name": "backend", "private": true, "type": "module",
+  "name": "backend",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env src/server.js",
     "start": "node --env-file=.env src/server.js",
@@ -8,6 +10,16 @@
     "test": "node --test test/*.test.js",
     "test:integration": "node --env-file=.env --test test/integration.js"
   },
-  "dependencies": {"@prisma/client": "6.12.0", "decimal.js": "^10.6.0", "express": "^5.1.0", "helmet": "^8.1.0", "zod": "^3.25.76"},
-  "devDependencies": {"prisma": "6.12.0", "supertest": "^7.1.4"}
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "cors": "^2.8.6",
+    "decimal.js": "^10.6.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "prisma": "6.12.0",
+    "supertest": "^7.1.4"
+  }
 }
