@@ -1,12 +1,16 @@
 import Swal from 'sweetalert2';
 
-// Toasts flotantes con autodesvanecimiento en 3.5 segundos
+// Toast flotante compacto y discreto (desaparece rápido en 2 segundos)
 export const toast = Swal.mixin({
   toast: true,
   position: 'top-end',
   showConfirmButton: false,
-  timer: 3500,
-  timerProgressBar: true,
+  timer: 2000,
+  timerProgressBar: false,
+  customClass: {
+    popup: 'swal2-compact-toast',
+    title: 'swal2-compact-title'
+  },
   didOpen: (toastEl) => {
     toastEl.addEventListener('mouseenter', Swal.stopTimer);
     toastEl.addEventListener('mouseleave', Swal.resumeTimer);

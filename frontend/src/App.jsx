@@ -56,18 +56,11 @@ function Admin() {
     });
   }
 
-  // Sistema de Notificaciones Toast con SweetAlert2 y autodesvanecimiento
-  const [toasts, setToasts] = useState([]);
-  function addToast(message, type = 'info', duration = 3500) {
+  // Sistema de Notificaciones Toast con SweetAlert2
+  function addToast(message, type = 'info') {
     if (type === 'success') notifySuccess(message);
     else if (type === 'error') notifyError(message);
     else notifyInfo(message);
-
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type, duration }]);
-  }
-  function removeToast(id) {
-    setToasts(prev => prev.filter(t => t.id !== id));
   }
 
   async function reload() {
@@ -208,8 +201,6 @@ function Admin() {
 
   return (
     <div className="app-shell">
-      <Toast toasts={toasts} removeToast={removeToast} />
-      
       <div className="mobile-header print-hidden">
         <button className="mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? '✕ Cerrar' : '☰ Menú'}

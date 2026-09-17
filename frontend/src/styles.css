@@ -598,6 +598,36 @@ td p {
   display: block;
 }
 
+/* SweetAlert2 Toast Compacto y Discreto */
+.swal2-compact-toast {
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  max-width: 320px !important;
+  min-height: auto !important;
+}
+
+.swal2-compact-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.swal2-toast .swal2-icon {
+  margin: 0 8px 0 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+}
+
+.swal2-toast .swal2-icon .swal2-icon-content {
+  font-size: 12px !important;
+}
+
 /* WhatsApp Button */
 .btn-whatsapp {
   display: inline-flex;
