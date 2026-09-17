@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, categories, money } from './api';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import { confirmDelete, notifySuccess, notifyError } from './utils/alerts';
 
 const definitions = {
   customers: {
@@ -74,8 +75,11 @@ export default function Registry({ type, records, customers, reload }) {
 
   async function handleDelete() {
     if (!form.id || company) return;
-    const confirmMsg = `¿Estás seguro de que deseas eliminar este ${config.title}?`;
-    if (!window.confirm(confirmMsg)) return;
+    const confirmed = await confirmDelete(
+      `¿Eliminar este ${config.title}?`,
+      'Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
 
     setBusy(true);
     setError('');
@@ -84,9 +88,12 @@ export default function Registry({ type, records, customers, reload }) {
       await api(`/${type}/${form.id}`, { method: 'DELETE' });
       await reload();
       setForm(blank());
-      setMessage(`${config.title.charAt(0).toUpperCase() + config.title.slice(1)} eliminado correctamente`);
+      const msg = `${config.title.charAt(0).toUpperCase() + config.title.slice(1)} eliminado correctamente`;
+      setMessage(msg);
+      notifySuccess(msg);
     } catch (err) {
       setError(err.message);
+      notifyError(err.message);
     } finally {
       setBusy(false);
     }
@@ -110,8 +117,10 @@ export default function Registry({ type, records, customers, reload }) {
           setForm(prev => ({ ...prev, [key]: res.url }));
           setError('');
           setMessage('Imagen subida correctamente');
+          notifySuccess('Imagen subida correctamente');
         } catch (err) {
           setError('Error al subir la imagen: ' + err.message);
+          notifyError('Error al subir la imagen: ' + err.message);
         } finally {
           setBusy(false);
         }
@@ -138,8 +147,11 @@ export default function Registry({ type, records, customers, reload }) {
 
   async function handleDeleteRecord(recordToDelete) {
     if (!recordToDelete?.id || company) return;
-    const confirmMsg = `¿Estás seguro de que deseas eliminar este ${config.title}?`;
-    if (!window.confirm(confirmMsg)) return;
+    const confirmed = await confirmDelete(
+      `¿Eliminar este ${config.title}?`,
+      'Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
 
     setBusy(true);
     setError('');
@@ -148,9 +160,12 @@ export default function Registry({ type, records, customers, reload }) {
       await api(`/${type}/${recordToDelete.id}`, { method: 'DELETE' });
       await reload();
       if (form.id === recordToDelete.id) setForm(blank());
-      setMessage(`${config.title.charAt(0).toUpperCase() + config.title.slice(1)} eliminado correctamente`);
+      const msg = `${config.title.charAt(0).toUpperCase() + config.title.slice(1)} eliminado correctamente`;
+      setMessage(msg);
+      notifySuccess(msg);
     } catch (err) {
       setError(err.message);
+      notifyError(err.message);
     } finally {
       setBusy(false);
     }

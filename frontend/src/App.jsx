@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { api, downloadPdf, money } from './api';
 import QuoteForm from './QuoteForm';
 import QuoteDocument from './QuoteDocument';
@@ -7,6 +8,7 @@ import Login from './Login';
 import Toast from './components/Toast';
 import MetricsChart from './components/MetricsChart';
 import WhatsAppButton from './components/WhatsAppButton';
+import { confirmDelete, notifySuccess, notifyError, notifyInfo } from './utils/alerts';
 const navigation = [['quotes', 'Cotizaciones'], ['customers', 'Clientes'], ['vehicles', 'Vehículos'], ['items', 'Catálogo'], ['company', 'Mi empresa']];
 
 function PublicView({ token }) {
@@ -38,7 +40,11 @@ function Admin() {
   async function handleDeleteQuote(quoteToDelete) {
     if (!quoteToDelete?.id) return;
     const numStr = String(quoteToDelete.number).padStart(5, '0');
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar la Cotización N.º ${numStr}? Esta acción no se puede deshacer.`)) return;
+    const confirmed = await confirmDelete(
+      `¿Eliminar Cotización N.º ${numStr}?`,
+      'Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
 
     action(async () => {
       await api(`/quotes/${quoteToDelete.id}`, { method: 'DELETE' });
@@ -50,9 +56,13 @@ function Admin() {
     });
   }
 
-  // Sistema de Notificaciones Toast
+  // Sistema de Notificaciones Toast con SweetAlert2 y autodesvanecimiento
   const [toasts, setToasts] = useState([]);
-  function addToast(message, type = 'info', duration = 4000) {
+  function addToast(message, type = 'info', duration = 3500) {
+    if (type === 'success') notifySuccess(message);
+    else if (type === 'error') notifyError(message);
+    else notifyInfo(message);
+
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type, duration }]);
   }
@@ -92,6 +102,88 @@ function Admin() {
     api('/auth/me').then(async () => { await reload(); if (mounted) setLogged(true); }).catch(() => {}).finally(() => { if (mounted) setChecking(false); });
     return () => { mounted = false; };
   }, []);
+
+  // Control de inactividad de 20 minutos (Aviso a los 15 minutos con cuenta regresiva de 5 minutos)
+  useEffect(() => {
+    if (!logged) return;
+
+    const WARNING_TIME_MS = 15 * 60 * 1000; // 15 minutos sin interactuar
+    const COUNTDOWN_TIME_MS = 5 * 60 * 1000; // 5 minutos de aviso antes de cerrar
+    let lastActivity = Date.now();
+    let isWarningOpen = false;
+
+    const handleActivity = () => {
+      if (!isWarningOpen) {
+        lastActivity = Date.now();
+      }
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(evt => window.addEventListener(evt, handleActivity));
+
+    const checkInterval = setInterval(() => {
+      if (isWarningOpen) return;
+      const inactiveDuration = Date.now() - lastActivity;
+
+      if (inactiveDuration >= WARNING_TIME_MS) {
+        isWarningOpen = true;
+        let timerInterval;
+
+        Swal.fire({
+          title: '¿Sigues ahí?',
+          html: 'Tu sesión se cerrará por inactividad en <b>300</b> segundos para proteger tus datos y liberar recursos del servidor.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, seguir conectado',
+          cancelButtonText: 'Cerrar sesión ahora',
+          confirmButtonColor: '#059669',
+          cancelButtonColor: '#6b7280',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          timer: COUNTDOWN_TIME_MS,
+          timerProgressBar: true,
+          didOpen: () => {
+            const b = Swal.getHtmlContainer().querySelector('b');
+            timerInterval = setInterval(() => {
+              const remaining = Swal.getTimerLeft();
+              if (b && remaining) {
+                b.textContent = Math.ceil(remaining / 1000);
+              }
+            }, 1000);
+          },
+          willClose: () => {
+            clearInterval(timerInterval);
+          }
+        }).then(result => {
+          isWarningOpen = false;
+          lastActivity = Date.now();
+          if (result.isConfirmed) {
+            api('/health').catch(() => {});
+            notifyInfo('Sesión mantenida activa');
+          } else {
+            api('/auth/logout', { method: 'POST' }).catch(() => {});
+            setLogged(false);
+            setData(null);
+            setSelected(null);
+            setCreating(false);
+            setEditingQuote(null);
+            setSharePath('');
+            Swal.fire({
+              title: 'Sesión cerrada',
+              text: 'Se ha cerrado la sesión por 20 minutos de inactividad.',
+              icon: 'info',
+              confirmButtonColor: '#059669'
+            });
+          }
+        });
+      }
+    }, 10000);
+
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, handleActivity));
+      clearInterval(checkInterval);
+    };
+  }, [logged]);
 
   if (checking) return <main className="login"><p>Abriendo Taller Dimensión…</p></main>;
   if (!logged) return <Login {...{username, setUsername, password, setPassword, busy, error}} onSubmit={login}/>;
