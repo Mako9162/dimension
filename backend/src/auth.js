@@ -28,7 +28,8 @@ function sessionId(req) {
 }
 export function installAuth(app, db) {
   const failures = new Map();
-  const cookieOptions = { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', path: '/' };
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieOptions = { httpOnly: true, sameSite: isProd ? 'none' : 'lax', secure: isProd, path: '/' };
   // Las mutaciones deben provenir del cliente propio. El navegador no permite
   // enviar esta cabecera desde otro origen sin una autorización CORS explícita.
   app.use('/api', (req, res, next) => {
