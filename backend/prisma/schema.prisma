@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+enum Category {
+  REPUESTO
+  INSUMO
+  MANO_OBRA
+}
+
+enum QuoteStatus {
+  BORRADOR
+  ENVIADA
+  APROBADA
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA_DEBITO
+  TARJETA_CREDITO
+  CHEQUE
+  OTRO
+}
+
+model Company {
+  id           Int    @id @default(1)
+  name         String
+  ownerName    String @default("")
+  logoUrl      String @default("")
+  signatureUrl String @default("")
+  taxId        String @default("")
+  address      String @default("")
+  phone        String @default("")
+  email        String @default("")
+  terms        String @default("")
+}
+
+model Customer {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  taxId     String    @unique
+  address   String    @default("")
+  phone     String    @default("")
+  email     String    @default("")
+  vehicles  Vehicle[]
+  quotes    Quote[]
+  createdAt DateTime  @default(now())
+}
+
+model Vehicle {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  brand      String
+  model      String
+  year       Int
+  plate      String   @unique
+  color      String   @default("")
+  vin        String?  @unique
+  quotes     Quote[]
+
+  // La FK compuesta impide cotizar un vehículo de otro cliente incluso vía SQL.
+  @@unique([id, customerId])
+  @@index([customerId])
+}
+
+model Item {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  description String      @default("")
+  category    Category
+  cost        Decimal     @db.Decimal(14, 2)
+  price       Decimal     @db.Decimal(14, 2)
+  details     QuoteLine[]
+}
+
+model Quote {
+  id               String      @id @default(uuid()) @db.Uuid
+  number           Int         @unique @default(autoincrement())
+  customerId       String      @db.Uuid
+  vehicleId        String      @db.Uuid
+  customer         Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicle          Vehicle     @relation(fields: [vehicleId, customerId], references: [id, customerId], onDelete: Restrict)
+  date             DateTime    @default(now())
+  status           QuoteStatus @default(BORRADOR)
+  observations     String      @default("")
+  terms            String      @default("")
+  taxRate          Decimal     @db.Decimal(5, 2)
+  subtotal         Decimal     @db.Decimal(18, 0)
+  tax              Decimal     @db.Decimal(18, 0)
+  total            Decimal     @db.Decimal(18, 0)
+  companySnapshot  Json
+  customerSnapshot Json
+  vehicleSnapshot  Json
+  publicToken      String?     @unique
+  lines            QuoteLine[]
+  receipts         Receipt[]
+
+  @@index([customerId, date])
+  @@index([vehicleId, customerId])
+}
+
+model QuoteLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  quoteId     String   @db.Uuid
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  itemId      String?  @db.Uuid
+  item        Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  position    Int
+  name        String
+  description String   @default("")
+  category    Category
+  quantity    Decimal  @db.Decimal(10, 2)
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  lineTotal   Decimal  @db.Decimal(14, 0)
+
+  @@unique([quoteId, position])
+  @@index([itemId])
+}
+
+model Receipt {
+  id            String        @id @default(uuid()) @db.Uuid
+  number        Int           @unique @default(autoincrement())
+  quoteId       String        @db.Uuid
+  quote         Quote         @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  date          DateTime      @default(now())
+  amount        Decimal       @db.Decimal(18, 0)
+  paymentMethod PaymentMethod @default(EFECTIVO)
+  paidBy        String        @default("")
+  receivedBy    String        @default("")
+  notes         String        @default("")
+  createdAt     DateTime      @default(now())
+
+  @@index([quoteId, date])
+}
