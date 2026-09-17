@@ -6,11 +6,12 @@ RUN pip3 install reportlab pillow --break-system-packages
 
 WORKDIR /app
 
-# Copiar archivos de dependencias e instalar
+# Copiar package.json y prisma
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+# Instalar dependencias de producción
+RUN npm install --omit=dev
 
 # Copiar el resto del código fuente del backend
 COPY . .
@@ -24,4 +25,4 @@ ENV HOST=0.0.0.0
 
 EXPOSE 3001
 
-CMD ["npm", "start"]
+CMD ["node", "src/server.js"]
