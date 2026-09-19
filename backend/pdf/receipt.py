@@ -21,7 +21,7 @@ LIGHT_BG = colors.HexColor('#f7f9f8')
 GREEN_BG = colors.HexColor('#f0fdf4')
 GREEN_TEXT = colors.HexColor('#15803d')
 WIDTH = 499.27
-LOGO_FALLBACK = Path(__file__).resolve().parents[2] / 'frontend/public/brand/taller-dimension.png'
+import urllib.request
 
 def currency(value):
     return '$' + format(Decimal(str(value)), ',.0f').replace(',', '.')
@@ -29,24 +29,47 @@ def currency(value):
 def p(text, style):
     return Paragraph(str(text or '').replace('\n', '<br/>'), style)
 
-def get_canvas_image(img_str):
+def fetch_image_bytes(img_str):
     if not img_str:
         return None
     try:
         if img_str.startswith('data:image'):
             header, encoded = img_str.split(',', 1)
-            img_data = base64.b64decode(encoded)
-            return ImageReader(io.BytesIO(img_data))
-        if img_str == '/brand/taller-dimension.png' and LOGO_FALLBACK.exists():
-            return ImageReader(str(LOGO_FALLBACK))
+            return base64.b64decode(encoded)
+        if img_str.startswith(('http://', 'https://')):
+            req = urllib.request.Request(img_str, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                return response.read()
+
+        paths_to_try = []
         if img_str.startswith('/'):
-            local_path = Path(__file__).resolve().parents[2] / 'frontend/public' / img_str.lstrip('/')
-            if local_path.exists():
-                return ImageReader(str(local_path))
-        if Path(img_str).exists():
-            return ImageReader(img_str)
+            paths_to_try.append(Path(__file__).resolve().parents[1] / img_str.lstrip('/'))
+            paths_to_try.append(Path(__file__).resolve().parents[2] / 'frontend/public' / img_str.lstrip('/'))
+        else:
+            paths_to_try.append(Path(img_str))
+
+        for p in paths_to_try:
+            if p.exists() and p.is_file():
+                return p.read_bytes()
+
+        fallback = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
+        if fallback.exists():
+            return fallback.read_bytes()
     except Exception:
         pass
+    return None
+
+def get_canvas_image(img_str):
+    raw_bytes = fetch_image_bytes(img_str)
+    if not raw_bytes:
+        fallback = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
+        if fallback.exists():
+            raw_bytes = fallback.read_bytes()
+    if raw_bytes:
+        try:
+            return ImageReader(io.BytesIO(raw_bytes))
+        except Exception:
+            pass
     return None
 
 from PIL import Image as PILImage
@@ -75,28 +98,12 @@ def make_signature_transparent(img_bytes):
         return img_bytes
 
 def resolve_image(img_str, max_w=140, max_h=50, is_signature=False):
-    if not img_str:
+    raw_bytes = fetch_image_bytes(img_str)
+    if not raw_bytes:
         return None
     try:
-        raw_bytes = None
-        if img_str.startswith('data:image'):
-            header, encoded = img_str.split(',', 1)
-            raw_bytes = base64.b64decode(encoded)
-        elif img_str == '/brand/taller-dimension.png' and LOGO_FALLBACK.exists():
-            raw_bytes = LOGO_FALLBACK.read_bytes()
-        elif img_str.startswith('/'):
-            local_path = Path(__file__).resolve().parents[2] / 'frontend/public' / img_str.lstrip('/')
-            if local_path.exists():
-                raw_bytes = local_path.read_bytes()
-        elif Path(img_str).exists():
-            raw_bytes = Path(img_str).read_bytes()
-
-        if not raw_bytes:
-            return None
-
         if is_signature:
             raw_bytes = make_signature_transparent(raw_bytes)
-
         return Image(io.BytesIO(raw_bytes), width=max_w, height=max_h)
     except Exception:
         pass
