@@ -19,7 +19,11 @@ export const vehicleSchema = z.object({
 
 export const itemSchema = z.object({ name: required, description: text.default(''), category, cost: money, price: money });
 
-const imageUrl = z.string().max(15000000).default('');
+const imageUrl = z.string().max(3000000).refine(value => !value ||
+  /^\/brand\/[a-zA-Z0-9_-]+\.png$/.test(value) ||
+  /^\/uploads\/[a-zA-Z0-9_-]+\.(png|jpe?g|webp)$/.test(value) ||
+  /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(value) ||
+  /^https:\/\/[^\s]+$/i.test(value), 'Usa una imagen PNG, JPG o WebP, o una URL HTTPS').default('');
 
 export const companySchema = z.object({
   name: required, ownerName: text.default(''), taxId: text.default(''), address: text.default(''), phone: text.default(''), email,
@@ -43,7 +47,7 @@ export const quoteSchema = z.object({
 });
 
 export const receiptSchema = z.object({
-  amount: z.coerce.number().finite().positive('El monto del abono debe ser mayor a cero').max(100000000),
+  amount: z.coerce.number().finite().int('Ingresa el abono en pesos completos').positive('El monto del abono debe ser mayor a cero').max(100000000),
   paymentMethod: paymentMethod.default('EFECTIVO'),
   paidBy: z.string().max(300).optional().default(''),
   receivedBy: z.string().max(300).optional().default(''),
@@ -51,6 +55,6 @@ export const receiptSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Ingresa tu contraseña actual'),
-  newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres'),
+  currentPassword: z.string().min(1, 'Ingresa tu contraseña actual').max(256),
+  newPassword: z.string().min(12, 'La nueva contraseña debe tener al menos 12 caracteres').max(256),
 });

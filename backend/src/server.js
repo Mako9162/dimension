@@ -5,7 +5,7 @@ import { createApp } from './app.js';
 import { db } from './db.js';
 import { ensureInitialUser } from './auth.js';
 
-await ensureInitialUser(db, (process.env.INITIAL_ADMIN_USERNAME || 'admin').trim().toLowerCase(), process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_TOKEN);
+await ensureInitialUser(db, (process.env.INITIAL_ADMIN_USERNAME || 'admin').trim().toLowerCase(), process.env.INITIAL_ADMIN_PASSWORD);
 const app = createApp(db);
 
 const publicDir = fileURLToPath(new URL('../../frontend/dist/', import.meta.url));

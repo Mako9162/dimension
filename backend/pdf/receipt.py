@@ -7,6 +7,7 @@ import sys
 import base64
 from pathlib import Path
 from decimal import Decimal
+from xml.sax.saxutils import escape
 from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
@@ -21,43 +22,15 @@ LIGHT_BG = colors.HexColor('#f7f9f8')
 GREEN_BG = colors.HexColor('#f0fdf4')
 GREEN_TEXT = colors.HexColor('#15803d')
 WIDTH = 499.27
-import urllib.request
+
 
 def currency(value):
     return '$' + format(Decimal(str(value)), ',.0f').replace(',', '.')
 
 def p(text, style):
-    return Paragraph(str(text or '').replace('\n', '<br/>'), style)
+    return Paragraph(escape(str(text or '')).replace('\n', '<br/>'), style)
 
-def fetch_image_bytes(img_str):
-    if not img_str:
-        return None
-    try:
-        if img_str.startswith('data:image'):
-            header, encoded = img_str.split(',', 1)
-            return base64.b64decode(encoded)
-        if img_str.startswith(('http://', 'https://')):
-            req = urllib.request.Request(img_str, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                return response.read()
-
-        paths_to_try = []
-        if img_str.startswith('/'):
-            paths_to_try.append(Path(__file__).resolve().parents[1] / img_str.lstrip('/'))
-            paths_to_try.append(Path(__file__).resolve().parents[2] / 'frontend/public' / img_str.lstrip('/'))
-        else:
-            paths_to_try.append(Path(img_str))
-
-        for p in paths_to_try:
-            if p.exists() and p.is_file():
-                return p.read_bytes()
-
-        fallback = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
-        if fallback.exists():
-            return fallback.read_bytes()
-    except Exception:
-        pass
-    return None
+from safe_images import fetch_image_bytes
 
 def get_canvas_image(img_str):
     raw_bytes = fetch_image_bytes(img_str)

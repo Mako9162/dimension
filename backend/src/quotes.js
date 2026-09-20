@@ -55,6 +55,9 @@ export async function updateQuote(db, id, input) {
     });
     if (!existing) throw new HttpError(404, 'Cotización no encontrada');
 
+    if (existing.receipts.length && (data.customerId !== existing.customerId || data.vehicleId !== existing.vehicleId))
+      throw new HttpError(409, 'Una cotización con abonos debe conservar su cliente y vehículo.');
+
     const totalPaid = existing.receipts.reduce((sum, r) => sum + Number(r.amount), 0);
 
     const [customer, vehicle, company, items] = await Promise.all([
@@ -132,7 +135,7 @@ export async function createReceipt(db, quoteId, input) {
     });
 
     return receipt;
-  });
+  }, { isolationLevel: 'Serializable' });
 }
 
 export async function deleteReceipt(db, receiptId) {
@@ -142,13 +145,21 @@ export async function deleteReceipt(db, receiptId) {
 }
 
 export async function deleteQuote(db, id) {
-  const quote = await db.quote.findUnique({ where: { id } });
-  if (!quote) throw new HttpError(404, 'Cotización no encontrada');
-  await db.quote.delete({ where: { id } });
+  return db.$transaction(async tx => {
+    const quote = await tx.quote.findUnique({ where: { id }, include: { receipts: { select: { id: true } } } });
+    if (!quote) throw new HttpError(404, 'Cotización no encontrada');
+    if (quote.receipts.length) throw new HttpError(409, 'Esta cotización tiene abonos. Anula sus recibos antes de eliminarla.');
+    await tx.quote.delete({ where: { id } });
+  }, { isolationLevel: 'Serializable' });
 }
 
 export async function shareQuote(db, id) {
-  return db.quote.update({ where: { id }, data: { publicToken: randomBytes(32).toString('hex') } });
+  return db.$transaction(async tx => {
+    const existing = await tx.quote.findUnique({ where: { id } });
+    if (!existing) throw new HttpError(404, 'Cotización no encontrada');
+    if (existing.publicToken) return existing;
+    return tx.quote.update({ where: { id }, data: { publicToken: randomBytes(32).toString('hex') } });
+  }, { isolationLevel: 'Serializable' });
 }
 
 export function publicQuote(q) {

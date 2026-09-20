@@ -26,13 +26,24 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     await agent.post('/api/auth/login').send({ username: suffix, password: key }).expect(403);
     const login = await agent.post('/api/auth/login').set('X-Requested-With', 'TallerDimension').send({ username: suffix, password: key }).expect(200);
     assert.match(login.headers['set-cookie'][0], /HttpOnly/);
-    assert.match(login.headers['set-cookie'][0], /SameSite=Strict/);
+    assert.match(login.headers['set-cookie'][0], /SameSite=Lax/);
     await agent.get('/api/auth/me').expect(200);
+    await agent.get('/api/items').set('Origin', 'https://intruso.example').expect(403);
+    await request(app).options('/api/auth/login').set('Origin', 'https://intruso.example').set('Access-Control-Request-Method', 'POST').expect(403);
+    await request(app).options('/api/auth/login').set('Origin', 'https://dimension-frontend-sage.vercel.app').set('Access-Control-Request-Method', 'POST').expect(204).expect('Access-Control-Allow-Origin', 'https://dimension-frontend-sage.vercel.app');
     await request(app).get('/api/items').auth(key, { type: 'bearer' }).expect(401);
     const created = await agent.post('/api/quotes').set('X-Requested-With', 'TallerDimension').send(body).expect(201);
     quote = created.body;
     assert.equal(quote.total, '2380');
     assert.equal(quote.lines.length, 1);
+    const listed = await agent.get('/api/quotes').query({ page: 1, limit: 1, search: vehicle.plate }).expect(200);
+    assert.equal(listed.body.pagination.total, 1);
+    assert.equal(listed.body.data[0].id, quote.id);
+    assert.equal(listed.body.data[0].companySnapshot, undefined);
+    assert.equal(listed.body.data[0].lines, undefined);
+    await agent.get('/api/quotes?page=-1').expect(400);
+    const metrics = await agent.get('/api/quotes/metrics').expect(200);
+    assert.ok(metrics.body.total >= 1);
     const pdf = await agent.get(`/api/quotes/${quote.id}/pdf`).expect(200).expect('Content-Type', /application\/pdf/);
     assert.equal(pdf.body.subarray(0, 4).toString(), '%PDF');
     await request(app).get(`/api/quotes/${quote.id}/pdf`).expect(401);
@@ -42,7 +53,7 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     const count = await db.quote.count();
     // FK inválida en la segunda línea: comprueba rollback tras INSERT de cabecera.
     await assert.rejects(db.$transaction(async tx => {
-      const { id, number, lines, ...header } = quote;
+      const { id, number, lines, receipts, ...header } = quote;
       const copy = await tx.quote.create({ data: header });
       await tx.quoteLine.create({ data: { quoteId: copy.id, position: 0, name: 'Válido', category: 'INSUMO', quantity: 1, unitPrice: 1, lineTotal: 1 } });
       await tx.quoteLine.create({ data: { quoteId: copy.id, itemId: randomUUID(), position: 1, name: 'Inválido', category: 'INSUMO', quantity: 1, unitPrice: 1, lineTotal: 1 } });
@@ -51,6 +62,8 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     await assert.rejects(db.quote.update({ where: { id: quote.id }, data: { customerId: other.id } }));
     const shared = await agent.post(`/api/quotes/${quote.id}/share`).set('X-Requested-With', 'TallerDimension').expect(200);
     const token = shared.body.path.split('/').pop();
+    const sharedAgain = await agent.post(`/api/quotes/${quote.id}/share`).set('X-Requested-With', 'TallerDimension').expect(200);
+    assert.equal(sharedAgain.body.path, shared.body.path);
     const published = await request(app).get(`/api/public/quotes/${token}`).expect(200);
     assert.equal(published.body.total, '2380');
     assert.equal(published.body.publicToken, undefined);
@@ -58,6 +71,21 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     await agent.delete(`/api/quotes/${quote.id}/share`).set('X-Requested-With', 'TallerDimension').expect(204);
     await request(app).get(`/api/public/quotes/${token}`).expect(404);
     await request(app).get(`/api/public/quotes/${token}/pdf`).expect(404);
+    await agent.post(`/api/quotes/${quote.id}/receipts`).set('X-Requested-With', 'TallerDimension').send({ amount: 0.5, paymentMethod: 'EFECTIVO' }).expect(400);
+    const payments = await Promise.all([1, 2].map(() => agent.post(`/api/quotes/${quote.id}/receipts`).set('X-Requested-With', 'TallerDimension').send({ amount: 2000, paymentMethod: 'EFECTIVO', paidBy: '<img src="file:///etc/passwd"/> & Cliente' })));
+    assert.equal(payments.filter(r => r.status === 201).length, 1);
+    assert.ok(payments.some(r => [400, 409].includes(r.status)));
+    const receipt = payments.find(r => r.status === 201).body;
+    await agent.get(`/api/quotes/receipts/${receipt.id}/pdf`).expect(200).expect('Content-Type', /application\/pdf/);
+    await agent.delete(`/api/quotes/${quote.id}`).set('X-Requested-With', 'TallerDimension').expect(409);
+    await agent.put(`/api/quotes/${quote.id}`).set('X-Requested-With', 'TallerDimension').send({ ...body, customerId: other.id }).expect(409);
+    await agent.delete(`/api/quotes/receipts/${receipt.id}`).set('X-Requested-With', 'TallerDimension').expect(204);
+    await agent.post('/api/upload').set('X-Requested-With', 'TallerDimension').send({ image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }).expect(400);
+    await agent.post('/api/upload').set('X-Requested-With', 'TallerDimension').send({ image: 'data:image/png;base64,bm90IGFuIGltYWdl' }).expect(400);
+    const { readFile } = await import('node:fs/promises');
+    const png = await readFile(new URL('../brand/taller-dimension.png', import.meta.url));
+    const upload = await agent.post('/api/upload').set('X-Requested-With', 'TallerDimension').send({ image: `data:image/png;base64,${png.toString('base64')}` }).expect(200);
+    assert.match(upload.body.url, /^data:image\/png;base64,/);
     const tempItem = await db.item.create({ data: { name: 'Item Borrable', category: 'INSUMO', cost: 10, price: 20 } });
     await agent.delete(`/api/items/${tempItem.id}`).set('X-Requested-With', 'TallerDimension').expect(200);
 
@@ -66,6 +94,13 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     await agent.delete(`/api/vehicles/${tempVeh.id}`).set('X-Requested-With', 'TallerDimension').expect(200);
     await agent.delete(`/api/customers/${tempCust.id}`).set('X-Requested-With', 'TallerDimension').expect(200);
 
+    const otherSession = request.agent(app);
+    await otherSession.post('/api/auth/login').set('X-Requested-With', 'TallerDimension').send({ username: suffix, password: key }).expect(200);
+    await agent.post('/api/auth/change-password').set('X-Requested-With', 'TallerDimension').send({ currentPassword: key, newPassword: 'short' }).expect(400);
+    await agent.post('/api/auth/change-password').set('X-Requested-With', 'TallerDimension').send({ currentPassword: key, newPassword: `${key}-changed` }).expect(200);
+    await agent.get('/api/auth/me').expect(200);
+    await otherSession.get('/api/auth/me').expect(401);
+    await request(app).post('/api/auth/login').set('X-Requested-With', 'TallerDimension').send({ username: suffix, password: key }).expect(401);
     await agent.post('/api/auth/logout').set('X-Requested-With', 'TallerDimension').expect(204);
     await agent.get('/api/auth/me').expect(401);
   } finally {

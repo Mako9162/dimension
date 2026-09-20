@@ -5,15 +5,24 @@ import { createQuote, updateQuote, deleteQuote, createReceipt, deleteReceipt, sh
 
 export function createQuotesRouter(db) {
   const router = Router();
+  const listSelect = { id: true, number: true, date: true, status: true, total: true, customerSnapshot: true, vehicleSnapshot: true, receipts: { select: { amount: true } } };
+
+  router.get('/metrics', async (_req, res) => {
+    const [groups, approved, paid] = await db.$transaction([
+      db.quote.groupBy({ by: ['status'], _count: { _all: true } }),
+      db.quote.aggregate({ where: { status: 'APROBADA' }, _sum: { total: true } }),
+      db.receipt.aggregate({ where: { quote: { status: 'APROBADA' } }, _sum: { amount: true } }),
+    ], { isolationLevel: 'RepeatableRead' });
+    const count = status => groups.find(g => g.status === status)?._count._all || 0;
+    const approvedTotal = Number(approved._sum.total || 0);
+    res.json({ total: groups.reduce((s,g) => s + g._count._all, 0), drafts: count('BORRADOR'), sent: count('ENVIADA'), approved: count('APROBADA'), approvedTotal, pendingBalance: Math.max(0, approvedTotal - Number(paid._sum.amount || 0)) });
+  });
 
   router.get('/', async (req, res) => {
-    const search = req.query.search?.toString().trim();
-    const status = req.query.status?.toString().trim();
-    const pageParam = req.query.page ? parseInt(req.query.page, 10) : null;
-    const limitParam = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-
-    const page = pageParam && pageParam > 0 ? pageParam : 1;
-    const limit = Math.min(Math.max(limitParam, 1), 100);
+    const { search, status, page, limit } = z.object({
+      search: z.string().trim().max(120).default(''), status: z.enum(['', 'BORRADOR', 'ENVIADA', 'APROBADA']).default(''),
+      page: z.coerce.number().int().min(1).max(1000000).default(1), limit: z.coerce.number().int().min(1).max(100).default(20),
+    }).parse(req.query);
 
     const conditions = [];
 
@@ -22,8 +31,10 @@ export function createQuotesRouter(db) {
     }
 
     if (search) {
-      const isNumber = !isNaN(Number(search)) && Number.isInteger(Number(search));
+      const isNumber = /^\d+$/.test(search) && Number(search) <= 2147483647;
       const searchConditions = [
+        { customerSnapshot: { path: ['name'], string_contains: search, mode: 'insensitive' } },
+        { vehicleSnapshot: { path: ['plate'], string_contains: search, mode: 'insensitive' } },
         { customer: { name: { contains: search, mode: 'insensitive' } } },
         { customer: { taxId: { contains: search, mode: 'insensitive' } } },
         { vehicle: { plate: { contains: search, mode: 'insensitive' } } },
@@ -43,7 +54,7 @@ export function createQuotesRouter(db) {
       const quotes = await db.quote.findMany({
         where,
         orderBy: { number: 'desc' },
-        include: quoteInclude,
+        select: listSelect,
         take: 100,
       });
       return res.json(quotes);
@@ -53,7 +64,7 @@ export function createQuotesRouter(db) {
     const quotes = await db.quote.findMany({
       where,
       orderBy: { number: 'desc' },
-      include: quoteInclude,
+      select: listSelect,
       skip: (page - 1) * limit,
       take: limit,
     });

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { z } from 'zod';
+import { createLimiter } from './security.js';
 const derive = promisify(scrypt);
 const options = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const cookieName = 'dimension_session';
@@ -27,9 +28,10 @@ function sessionId(req) {
   return raw && /^[a-f0-9]{64}$/.test(raw) ? digest(raw) : null;
 }
 export function installAuth(app, db) {
-  const failures = new Map();
+  const allowIp = createLimiter({ limit: 30, windowMs: 15 * 60 * 1000 });
+  const allowAccount = createLimiter({ limit: 15, windowMs: 15 * 60 * 1000 });
   const isProd = process.env.NODE_ENV === 'production';
-  const cookieOptions = { httpOnly: true, sameSite: isProd ? 'none' : 'lax', secure: isProd, path: '/' };
+  const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: isProd, path: '/' };
   // Las mutaciones deben provenir del cliente propio. El navegador no permite
   // enviar esta cabecera desde otro origen sin una autorización CORS explícita.
   app.use('/api', (req, res, next) => {
@@ -38,23 +40,19 @@ export function installAuth(app, db) {
   });
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = credentials.parse(req.body);
-    const now = Date.now();
-    for (const [key, value] of failures) if (value.until < now) failures.delete(key);
-    const key = req.ip;
-    const attempts = failures.get(key) || { count: 0, until: now + 15 * 60 * 1000 };
-    if (attempts.count >= 10) return res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos antes de intentar nuevamente.' });
-    attempts.count++; failures.set(key, attempts);
+    if (!allowIp(req.ip) || !allowAccount(digest(username))) return res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos antes de intentar nuevamente.' });
     const user = await db.user.findUnique({ where: { username } });
     const fallbackHash = `scrypt:${'0'.repeat(32)}:${'0'.repeat(128)}`;
     const valid = await verifyPassword(password, user?.passwordHash || fallbackHash);
     if (!user || !valid) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-    failures.delete(key);
     const raw = randomBytes(32).toString('hex');
     const previousId = sessionId(req);
     await db.$transaction(async tx => {
+      const current = await tx.user.findUnique({ where: { id: user.id } });
+      if (!current || current.passwordHash !== user.passwordHash) { const error = new Error('La contraseña cambió. Inicia sesión nuevamente.'); error.status = 401; throw error; }
       await tx.session.deleteMany({ where: { OR: [{ expiresAt: { lt: new Date() } }, ...(previousId ? [{ id: previousId }] : [])] } });
       await tx.session.create({ data: { id: digest(raw), userId: user.id, expiresAt: new Date(Date.now() + ttl) } });
-    });
+    }, { isolationLevel: 'Serializable' });
     res.cookie(cookieName, raw, { ...cookieOptions, maxAge: ttl }).json({ username: user.username });
   });
   app.post('/api/auth/logout', async (req, res) => {
@@ -67,6 +65,7 @@ export function installAuth(app, db) {
     const session = id ? await db.session.findUnique({ where: { id }, include: { user: true } }) : null;
     if (!session || session.expiresAt <= new Date()) return res.status(401).json({ error: 'Inicia sesión para continuar' });
     req.user = session.user;
+    req.sessionId = id;
     next();
   };
 }

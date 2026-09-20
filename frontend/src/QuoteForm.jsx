@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Decimal from 'decimal.js';
 import { api, money } from './api';
 
-export default function QuoteForm({ customers, vehicles, items, categoriesList = [], company, editingQuote, onSaved, onCancel }) {
+export default function QuoteForm({ customers, vehicles, items, categoriesList = [], company, editingQuote, onSaved, onCancel, onDirtyChange }) {
   const isEditing = Boolean(editingQuote);
   const activeCategories = categoriesList.length
     ? categoriesList.map(c => typeof c === 'string' ? c : c.name)
@@ -28,6 +28,16 @@ export default function QuoteForm({ customers, vehicles, items, categoriesList =
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const initial = useRef(JSON.stringify({ customerId, vehicleId, lines, taxRate, observations, terms }));
+  const current = JSON.stringify({ customerId, vehicleId, lines, taxRate, observations, terms });
+  const dirty = current !== initial.current;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   const safe = value => { try { const n = new Decimal(value || 0); return n.isFinite() ? n : new Decimal(0); } catch { return new Decimal(0); } };
   const lineTotals = lines.map(l => safe(l.quantity).mul(safe(l.unitPrice)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP));
@@ -49,11 +59,13 @@ export default function QuoteForm({ customers, vehicles, items, categoriesList =
         method,
         body: { customerId, vehicleId, taxRate, observations, terms, lines: lines.map(({ key, ...l }) => l) }
       });
-      onSaved(quote);
+      initial.current = current;
+      onDirtyChange?.(false);
+      await onSaved(quote);
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   }
 
-  return <form onSubmit={save}>
+  return <form onSubmit={save} className="quote-form">
     <section className="panel"><div className="section-title"><span className="step">01</span><div><h2>Cliente y vehículo</h2><p>Selecciona a quién va dirigida la cotización.</p></div></div>
       <div className="grid gap-5 md:grid-cols-2"><label>Cliente<select required value={customerId} onChange={e => { setCustomer(e.target.value); setVehicle(''); }}><option value="">Seleccionar cliente</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name} · {c.taxId}</option>)}</select></label><label>Vehículo<select required value={vehicleId} disabled={!customerId} onChange={e => setVehicle(e.target.value)}><option value="">Seleccionar vehículo</option>{vehicles.filter(v => v.customerId === customerId).map(v => <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select></label></div>
       {!customers.length && <p className="hint">Registra un cliente y su vehículo en las secciones correspondientes.</p>}
@@ -65,7 +77,7 @@ export default function QuoteForm({ customers, vehicles, items, categoriesList =
     </section>
     <section className="panel"><div className="section-title"><span className="step">03</span><h2>Información adicional</h2></div><div className="grid gap-5 md:grid-cols-2"><label>Observaciones de daños y plazo estimado<textarea rows={4} maxLength={10000} placeholder="Ej. Daño en parachoques delantero. Entrega estimada: 3 días hábiles." value={observations} onChange={e => setObservations(e.target.value)}/></label><label>Términos y condiciones<textarea rows={4} maxLength={10000} value={terms} onChange={e => setTerms(e.target.value)}/></label></div></section>
     {error && <p role="alert" className="error">{error}</p>}
-    <div className="flex justify-end gap-3">
+    <div className="form-save-bar"><span>{dirty ? 'Cambios sin guardar' : 'Completa los datos de tu propuesta'}</span>
       {onCancel && <button type="button" className="secondary" onClick={onCancel}>Cancelar</button>}
       <button disabled={busy || !lines.length} className="primary">{busy ? 'Guardando…' : isEditing ? 'Guardar Cambios 💾' : 'Guardar cotización →'}</button>
     </div>

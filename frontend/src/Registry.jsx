@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { api, money } from './api';
+import { useEffect, useState } from 'react';
+import { api, money, assetUrl } from './api';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import CategoryModal from './components/CategoryModal';
 import { confirmDelete, notifySuccess, notifyError } from './utils/alerts';
@@ -107,6 +107,7 @@ export default function Registry({ type, records, customers, categoriesList = []
   function handleFileUpload(key, e) {
     const file = e.target.files[0];
     if (file) {
+      if (!['image/png','image/jpeg','image/webp'].includes(file.type)) { setError('Selecciona una imagen PNG, JPG o WebP.'); return; }
       if (file.size > 5 * 1024 * 1024) {
         setError('La imagen no debe superar 5 MB');
         return;
@@ -121,8 +122,8 @@ export default function Registry({ type, records, customers, categoriesList = []
           });
           setForm(prev => ({ ...prev, [key]: res.url }));
           setError('');
-          setMessage('Imagen subida correctamente');
-          notifySuccess('Imagen subida correctamente');
+          setMessage('Imagen preparada. Guarda los datos para aplicar el cambio');
+          notifySuccess('Imagen preparada. Guarda los datos para aplicar el cambio');
         } catch (err) {
           setError('Error al subir la imagen: ' + err.message);
           notifyError('Error al subir la imagen: ' + err.message);
@@ -137,7 +138,7 @@ export default function Registry({ type, records, customers, categoriesList = []
   const [page, setPage] = useState(1);
 
   const filteredRecords = !company && search.trim() ? records.filter(row => {
-    const term = search.toLowerCase();
+    const term = search.trim().toLowerCase();
     const name = (row.name || '').toLowerCase();
     const plate = (row.plate || '').toLowerCase();
     const brand = (row.brand || '').toLowerCase();
@@ -148,6 +149,8 @@ export default function Registry({ type, records, customers, categoriesList = []
 
   const pageSize = 7;
   const totalPages = Math.ceil((filteredRecords?.length || 0) / pageSize) || 1;
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+
   const paginatedRecords = (!company && filteredRecords) ? filteredRecords.slice((page - 1) * pageSize, page * pageSize) : [];
 
   async function handleDeleteRecord(recordToDelete) {
@@ -547,7 +550,7 @@ function ImageField({ label, value, onChange, onUpload, id }) {
       <div className="flex gap-2 items-center">
         <input
           type="text"
-          placeholder="URL o sube una imagen..."
+          placeholder="Sube una imagen para incluirla en tus PDF"
           value={value ?? ''}
           onChange={e => onChange(e.target.value)}
           className="flex-1"
@@ -563,7 +566,7 @@ function ImageField({ label, value, onChange, onUpload, id }) {
         <input
           id={id}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp"
           style={{ display: 'none' }}
           onChange={onUpload}
         />
@@ -571,7 +574,7 @@ function ImageField({ label, value, onChange, onUpload, id }) {
       {value && (
         <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2.5 mt-2">
           <div className="flex items-center gap-3 overflow-hidden">
-            <img src={value} alt="Vista previa" className="h-10 w-auto max-w-[140px] object-contain border bg-white rounded p-1 shadow-sm" />
+            <img src={assetUrl(value)} alt="Vista previa" className="h-10 w-auto max-w-[140px] object-contain border bg-white rounded p-1 shadow-sm" />
             <span className="text-xs text-slate-600 truncate max-w-[140px]">
               {value.startsWith('data:') ? 'Imagen cargada' : value}
             </span>

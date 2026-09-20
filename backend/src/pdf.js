@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const quoteScript = fileURLToPath(new URL('../pdf/quote.py', import.meta.url));
 const receiptScript = fileURLToPath(new URL('../pdf/receipt.py', import.meta.url));
+const imageScript = fileURLToPath(new URL('../pdf/sanitize_image.py', import.meta.url));
 
 let active = 0;
 
@@ -35,3 +36,4 @@ export async function renderQuotePdf(quote) {
 export async function renderReceiptPdf(receiptData) {
   return runPythonPdf(receiptScript, receiptData);
 }
+export async function normalizeImage(image) { return runPythonPdf(imageScript, { image }); }

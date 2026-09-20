@@ -18,8 +18,8 @@ export default function ChangePasswordModal({ onClose, onSuccess }) {
       setError('Las contraseñas nuevas no coinciden');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('La nueva contraseña debe tener al menos 6 caracteres');
+    if (newPassword.length < 12) {
+      setError('La nueva contraseña debe tener al menos 12 caracteres');
       return;
     }
 
@@ -85,11 +85,11 @@ export default function ChangePasswordModal({ onClose, onSuccess }) {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={12}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 12 caracteres"
             />
           </div>
 
@@ -100,7 +100,7 @@ export default function ChangePasswordModal({ onClose, onSuccess }) {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={12}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}

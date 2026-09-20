@@ -1,0 +1,24 @@
+-- Features previously deployed using db push. Compatible with existing data.
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "ownerName" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "signatureUrl" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "address" TEXT NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS "ItemCategory" (
+  "id" UUID NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "ItemCategory_name_key" ON "ItemCategory"("name");
+ALTER TABLE "Item" ALTER COLUMN "category" TYPE TEXT USING "category"::text;
+ALTER TABLE "QuoteLine" ALTER COLUMN "category" TYPE TEXT USING "category"::text;
+DROP TYPE IF EXISTS "Category";
+DO $$ BEGIN
+  CREATE TYPE "PaymentMethod" AS ENUM ('EFECTIVO','TRANSFERENCIA','TARJETA_DEBITO','TARJETA_CREDITO','CHEQUE','OTRO');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE TABLE IF NOT EXISTS "Receipt" (
+  "id" UUID NOT NULL PRIMARY KEY, "number" SERIAL NOT NULL,
+  "quoteId" UUID NOT NULL REFERENCES "Quote"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "amount" DECIMAL(18,0) NOT NULL,
+  "paymentMethod" "PaymentMethod" NOT NULL DEFAULT 'EFECTIVO',
+  "paidBy" TEXT NOT NULL DEFAULT '', "receivedBy" TEXT NOT NULL DEFAULT '', "notes" TEXT NOT NULL DEFAULT '',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "Receipt_number_key" ON "Receipt"("number");
+CREATE INDEX IF NOT EXISTS "Receipt_quoteId_date_idx" ON "Receipt"("quoteId","date");

@@ -20,28 +20,28 @@ export const toast = Swal.mixin({
 export function notifySuccess(message) {
   toast.fire({
     icon: 'success',
-    title: message,
+    titleText: message,
   });
 }
 
 export function notifyError(message) {
   toast.fire({
     icon: 'error',
-    title: message,
+    titleText: message,
   });
 }
 
 export function notifyInfo(message) {
   toast.fire({
     icon: 'info',
-    title: message,
+    titleText: message,
   });
 }
 
 // Diálogo de confirmación con SweetAlert2
 export async function confirmDelete(title, text) {
   const result = await Swal.fire({
-    title,
+    titleText: title,
     text,
     icon: 'warning',
     showCancelButton: true,

@@ -1,13 +1,10 @@
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/auth.js';
+import { ensureInitialUser } from '../src/auth.js';
 
 const db = new PrismaClient();
 
 try {
-  if ((await db.user.count()) === 0) {
-    const hash = await hashPassword('admin123');
-    await db.user.create({ data: { username: 'admin', passwordHash: hash } });
-  }
+  await ensureInitialUser(db, (process.env.INITIAL_ADMIN_USERNAME || 'admin').trim().toLowerCase(), process.env.INITIAL_ADMIN_PASSWORD);
 
   await db.company.upsert({
     where: { id: 1 },

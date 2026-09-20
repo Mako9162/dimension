@@ -1,163 +1,198 @@
 # Taller Dimensión - Cotizaciones
 
-Base funcional en español: React + Tailwind CSS, Express 5, Prisma 6.12 y PostgreSQL 17. Importes en CLP, precios netos y porcentaje de impuesto configurable (valor inicial 19%).
+Sistema web para administrar clientes, vehículos, catálogo, cotizaciones, enlaces públicos, PDF profesionales y recibos de pago de un taller de desabolladura y pintura. Está construido con React + Tailwind CSS, Express 5, Prisma 6.12 y PostgreSQL.
+
+La versión en producción usa el frontend de Vercel como entrada pública y redirige `/api` y `/uploads` hacia Render:
+
+- Frontend: https://dimension-frontend-sage.vercel.app
+- API: https://dimension-backend-479v.onrender.com/api
 
 ## Ejecutar en Windows / PowerShell
 
-Requisitos: Node.js 22 o superior, Python 3.10+ con ReportLab y Docker Desktop iniciado con contenedores Linux (o PostgreSQL propio).
+Requisitos: Node.js 22 o superior, Docker Desktop con contenedores Linux, y Python con ReportLab si se ejecuta fuera del contenedor Docker.
 
 ```powershell
 npm install
 Copy-Item backend/.env.example backend/.env
 # Edita INITIAL_ADMIN_USERNAME e INITIAL_ADMIN_PASSWORD (mínimo 12 caracteres).
-python -m pip install -r backend/pdf/requirements.txt
-# PYTHON_BIN puede apuntar a un ejecutable Python con ReportLab instalado.
 npm run db:up
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Abre http://localhost:5173 e ingresa con el usuario y contraseña iniciales de backend/.env. El primer inicio crea el usuario solamente si todavía no existe ningún usuario; después se validan las credenciales guardadas en PostgreSQL. Cambiar las variables iniciales no cambia una cuenta ya creada. Los datos de ejemplo son ficticios. Si tienes PostgreSQL propio, cambia DATABASE_URL y omite db:up. El contenedor usa el puerto local 5438 para evitar interferir con otras bases. `db:seed` es idempotente y no sobrescribe los registros existentes.
+Abre http://localhost:5173 e ingresa con el usuario y contraseña iniciales de `backend/.env`. El primer inicio crea el usuario solo si no existe ningún usuario en PostgreSQL. Luego se validan siempre las credenciales guardadas en la base. Cambiar `INITIAL_ADMIN_PASSWORD` no cambia una cuenta existente; usa la opción de cambiar contraseña dentro del sistema.
 
-Para servir la compilación desde Express:
+Para servir el frontend compilado desde Express:
 
 ```powershell
 npm run build
 npm start -w backend
 ```
 
-Abre http://localhost:3001. Los dos servidores escuchan solo en la interfaz local. Para compartir enlaces con clientes externos, despliega frontend y API bajo el mismo dominio HTTPS mediante un proxy inverso; el enlace se genera con el origen actual. Un enlace localhost no es accesible desde el equipo de un cliente.
+Abre http://localhost:3001. El contenedor local de PostgreSQL usa el puerto 5438 para evitar conflictos con otras bases.
+
+## Despliegue
+
+Render ejecuta `backend/Dockerfile`. El comando final corre `node scripts/deploy.js` y luego `node src/server.js`. Ese script aplica migraciones Prisma; si encuentra una base antigua creada con `prisma db push`, solo marca el historial como aplicado cuando el esquema existente coincide exactamente con el esquema del repositorio. Si detecta deriva, se detiene para evitar pérdida silenciosa de datos.
+
+Variables recomendadas en Render:
+
+```text
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=<clave fuerte de 12+ caracteres>
+FRONTEND_URL=https://dimension-frontend-sage.vercel.app
+TRUST_PROXY_HOPS=1
+```
+
+Vercel debe publicar el proyecto `frontend/`. El archivo `frontend/vercel.json` mantiene el proxy hacia Render y agrega cabeceras de seguridad. En producción el frontend llama a `/api`, por lo que las cookies quedan bajo el dominio de Vercel y no dependen de cookies de terceros.
 
 ## Organización
 
 ```text
 backend/
   prisma/
-    schema.prisma           # Entidades, enums, llaves e índices
-    migrations/             # SQL versionado para PostgreSQL
-    seed.js                 # Taller, cliente, vehículo e ítems ficticios
+    schema.prisma
+    migrations/
+    seed.js
+  scripts/
+    deploy.js
   src/
-    app.js                  # Rutas, autorización, controladores y errores
-    server.js               # Inicio HTTP y distribución del frontend compilado
-    db.js                   # Cliente Prisma
-    quotes.js               # Servicio transaccional y proyección pública
-    validation.js           # Esquemas Zod de entrada
-    money.js                # Cálculos decimales autoritativos
-    auth.js                 # Hash scrypt, usuarios y sesiones con cookie HttpOnly
-    pdf.js                  # Generación de PDF por proceso Python
-  pdf/quote.py              # Diseño A4 profesional con ReportLab
+    app.js
+    auth.js
+    db.js
+    money.js
+    pdf.js
+    quotes.js
+    routes/
+    security.js
+    validation.js
+  pdf/
+    quote.py
+    receipt.py
+    safe_images.py
+    sanitize_image.py
   test/
-    money.test.js           # Cálculos, validación y privacidad
-    integration.js          # Transacciones y API contra PostgreSQL real
 frontend/
+  public/brand/
   src/
-    App.jsx                 # Acceso, navegación, historial y enlaces
-    QuoteForm.jsx           # Formulario dinámico y cálculo automático
-    QuoteDocument.jsx       # Documento del cliente e impresión
-    Registry.jsx            # Alta y edición de maestros
-    api.js                  # Cliente HTTP autenticado
-    styles.css              # Diseño responsive y estilos A4
-docker-compose.yml
+    App.jsx
+    Login.jsx
+    QuoteForm.jsx
+    QuoteDocument.jsx
+    Registry.jsx
+    api.js
+    components/
+    hooks/
+    theme.css
+output/pdf/
 ```
 
 ## Modelo relacional
 
-El esquema completo está en `backend/prisma/schema.prisma` y su SQL inicial en `backend/prisma/migrations/`.
+El esquema completo está en `backend/prisma/schema.prisma` y el SQL versionado en `backend/prisma/migrations/`.
 
 ```mermaid
 erDiagram
+    User ||--o{ Session : mantiene
     Customer ||--o{ Vehicle : posee
     Customer ||--o{ Quote : recibe
     Vehicle ||--o{ Quote : cotiza
     Quote ||--|{ QuoteLine : contiene
     Item o|--o{ QuoteLine : referencia
+    Quote ||--o{ Receipt : pagos
 ```
 
-- **Company**: configuración de un único taller (registro id=1). Nombre, URL del logo, RUT, dirección, teléfono, correo y términos. Sus datos se copian en cada cotización mediante JSON; editar el taller no altera documentos históricos.
-- **Customer → Vehicle**: uno a muchos, con FK obligatoria e índice por cliente. RUT y patente únicos; VIN opcional único. Se guarda el identificador fiscal como texto, sin imponer un algoritmo de RUT para permitir otros identificadores.
-- **Quote → Customer / Vehicle**: FK al cliente y FK compuesta `(vehicleId, customerId)` que exige pertenencia del vehículo al cliente incluso en escrituras SQL directas.
-- **Quote ↔ Item**: muchos a muchos mediante **QuoteLine**, que también admite ítems libres (`itemId=null`). Cada detalle conserva nombre, descripción, categoría, cantidad, precio unitario y total. No se expone el costo interno en documentos públicos.
-- **Quote**: número secuencial único, fecha de creación del servidor, estado, observaciones, términos, snapshots, tasa, subtotal, impuesto y total. La numeración PostgreSQL puede tener saltos por rollback; no equivale a un folio tributario.
-- **QuoteLine**: posición única dentro de la cotización. Eliminar una cotización elimina sus detalles; eliminar un ítem conserva sus detalles históricos sin referencia. Cliente y vehículo se protegen con `Restrict`.
+- **Company**: datos del taller, logo, firma, contacto y términos. Sus datos se copian como snapshot en cada cotización.
+- **Customer / Vehicle**: un cliente puede tener varios vehículos. La FK compuesta `(vehicleId, customerId)` impide cotizar un vehículo de otro cliente incluso mediante SQL directo.
+- **Item / ItemCategory**: catálogo editable de repuestos, insumos y mano de obra. Los costos internos no se exponen en enlaces públicos ni PDF del cliente.
+- **Quote / QuoteLine**: cabecera transaccional con detalles congelados al momento de cotizar. Los totales se calculan en backend con Decimal.js y se descartan totales enviados por el navegador.
+- **Receipt**: pagos asociados a una cotización aprobada. Las transacciones serializables evitan sobrepagos simultáneos.
+- **User / Session**: acceso con usuario y contraseña; la sesión se guarda como hash y se entrega mediante cookie HttpOnly.
 
-## Creación transaccional
+## API principal
 
-`POST /api/quotes` valida los datos con Zod y ejecuta `createQuote()` dentro de `prisma.$transaction`, con aislamiento Serializable. Consulta cliente, vehículo, empresa y catálogo, valida las relaciones y crea cabecera y detalles mediante escritura anidada. Cualquier error revierte la operación completa. Los conflictos simultáneos devuelven 409 para reintentar.
-
-```json
-{
-  "customerId": "UUID-CLIENTE",
-  "vehicleId": "UUID-VEHICULO",
-  "taxRate": 19,
-  "observations": "Reparación de parachoques. Entrega estimada: 3 días hábiles.",
-  "lines": [
-    { "itemId": "UUID-ITEM", "quantity": 1 },
-    { "name": "Pulido adicional", "category": "MANO_OBRA", "quantity": 1, "unitPrice": 25000 }
-  ]
-}
-```
-
-Para ítems del catálogo, omitir `unitPrice` usa el precio registrado. Un administrador puede ajustar `unitPrice` explícitamente. Los totales recibidos del navegador se descartan. Decimal.js evita errores binarios: cada línea se redondea a pesos (mitades hacia arriba); se suman las líneas redondeadas; el IVA se redondea una vez y se suma al subtotal. El frontend usa la misma regla. Máximo 100 líneas por cotización.
-
-## API
-
-Todas las rutas administrativas requieren una sesión iniciada mediante `POST /api/auth/login` con `{username,password}`. Las mutaciones requieren `X-Requested-With: TallerDimension`. La cookie de sesión es HttpOnly, SameSite=Strict y dura 8 horas. En producción (`NODE_ENV=production`) se envía solo por HTTPS. No se aceptan claves Bearer. Las contraseñas se almacenan con scrypt y sal aleatoria; la base guarda únicamente el hash del token de sesión. El límite de intentos es de 10 por IP cada 15 minutos, en memoria del proceso.
+Todas las rutas privadas requieren sesión iniciada. Las mutaciones requieren la cabecera `X-Requested-With: TallerDimension`.
 
 | Método y ruta | Función |
 | --- | --- |
 | POST /api/auth/login | Acceso con usuario y contraseña |
 | GET /api/auth/me | Usuario de la sesión actual |
-| POST /api/auth/logout | Invalidar sesión y borrar cookie |
-| GET /api/health | Conectividad de PostgreSQL |
-| GET, PUT /api/company | Leer / configurar el taller |
+| POST /api/auth/logout | Cerrar sesión |
+| POST /api/auth/change-password | Cambiar contraseña y revocar otras sesiones |
+| GET /api/health | Salud de PostgreSQL y versión |
+| GET, PUT /api/company | Configuración del taller |
+| POST /api/upload | Normalizar logo/firma a PNG seguro |
 | GET, POST /api/customers | Listar / crear clientes |
 | PUT /api/customers/:id | Editar cliente |
 | GET, POST /api/vehicles | Listar / crear vehículos |
 | PUT /api/vehicles/:id | Editar vehículo |
-| GET, POST /api/items | Listar / crear ítems |
-| PUT /api/items/:id | Editar ítem |
-| GET, POST /api/quotes | Últimas 100 / crear cotización |
-| GET /api/quotes/:id | Documento con detalles |
-| GET /api/quotes/:id/pdf | Descarga PDF autenticada |
-| GET /api/public/quotes/:token/pdf | Descarga PDF del enlace público vigente |
-| PATCH /api/quotes/:id/status | Actualizar BORRADOR / ENVIADA / APROBADA |
-| POST /api/quotes/:id/share | Generar enlace aleatorio; invalida el anterior |
-| DELETE /api/quotes/:id/share | Revocar enlace |
-| GET /api/public/quotes/:token | Vista pública limitada, sin clave administrativa |
+| GET, POST /api/items | Listar / crear items |
+| PUT /api/items/:id | Editar item |
+| GET, POST /api/categories | Listar / crear categorías |
+| GET /api/quotes/metrics | Métricas del tablero |
+| GET /api/quotes | Historial con búsqueda, filtro y paginación |
+| POST /api/quotes | Crear cotización en transacción |
+| GET, PUT, DELETE /api/quotes/:id | Leer, actualizar o eliminar cotización |
+| GET /api/quotes/:id/pdf | PDF autenticado |
+| PATCH /api/quotes/:id/status | Cambiar estado |
+| POST, DELETE /api/quotes/:id/share | Crear o revocar enlace público |
+| POST /api/quotes/:id/receipts | Registrar pago |
+| GET /api/quotes/receipts/:receiptId/pdf | PDF de recibo |
+| DELETE /api/quotes/receipts/:receiptId | Eliminar recibo |
+| GET /api/public/quotes/:token | Vista pública limitada |
+| GET /api/public/quotes/:token/pdf | PDF desde enlace público vigente |
 
-Los estados se administran manualmente; marcar ENVIADA no envía mensajes y APROBADA registra la decisión informada al taller. Compartir genera un enlace de solo lectura con token aleatorio de 256 bits; quien lo tenga puede ver esa cotización hasta su revocación. Las tablas User y Session soportan cuentas individuales. Esta entrega crea un administrador inicial; no incluye pantalla de gestión de usuarios, roles ni recuperación de contraseña.
+Los enlaces públicos son de solo lectura y funcionan como tokens portadores: quien tenga el enlace puede ver esa cotización hasta que se revoque.
 
 ## PDF
 
-Abre una cotización guardada y pulsa **Descargar PDF**. El servidor entrega un PDF A4 real generado con ReportLab, sin depender del diálogo del navegador. Incluye membrete, logo, número, fecha, datos del cliente y vehículo, tabla de trabajos, subtotal, IVA, total destacado, condiciones y numeración de páginas. La tabla repite sus encabezados y las notas extensas admiten saltos de página.
+El servidor genera PDF A4 reales con ReportLab. Las cotizaciones incluyen membrete, logo, datos de cliente y vehículo, tabla con items, subtotal, IVA, total destacado, observaciones, términos y numeración de páginas. Los recibos incluyen pagos, saldo y datos de la cotización.
 
-El logo original se encuentra en `frontend/public/brand/taller-dimension.png`. La empresa usa esa ruta relativa para incluirlo tanto en web como en PDF. Los logos remotos configurados por URL se muestran en web; el generador PDF no descarga recursos remotos y en ese caso presenta el nombre del taller. Los documentos guardados mantienen su identidad histórica.
+Los logos remotos por URL HTTPS se muestran en web, pero el generador PDF no descarga imágenes externas. Para que el logo o firma aparezcan en PDF, súbelos desde la interfaz; el backend los convierte a PNG validado y los guarda como `data:image/png`.
 
-Ejemplo con datos ficticios: `output/pdf/Cotizacion-Taller-Dimension-ejemplo.pdf`. Para regenerarlo:
+Ejemplos con datos ficticios:
 
-```powershell
-node --env-file=backend/.env backend/scripts/example-pdf.js
-```
+- `output/pdf/Cotizacion-Taller-Dimension-ejemplo.pdf`
+- `output/pdf/Recibo-Taller-Dimension-ejemplo.pdf`
+
+## Seguridad
+
+La revisión completa de esta actualización está en `SECURITY_REVIEW.md`. Puntos principales:
+
+- No hay contraseña fija `admin/admin123`; el primer usuario exige una contraseña inicial fuerte.
+- Las contraseñas usan scrypt con sal aleatoria.
+- Las sesiones se guardan como SHA-256 del token y se envían en cookie HttpOnly, Secure en producción y SameSite=Lax.
+- CORS permite orígenes exactos y rechaza cualquier `Origin` no autorizado.
+- Vercel aplica CSP, `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy` y `Permissions-Policy`.
+- Las descargas PDF, login, cambio de contraseña y uploads tienen límites de frecuencia en memoria.
+- Las imágenes para PDF no pueden ser URLs arbitrarias ni rutas locales; se validan tipo, peso y dimensiones.
+
+Limitaciones actuales: el limitador vive en memoria del proceso, no hay roles por usuario, no hay recuperación de contraseña, no hay auditoría histórica de cada mutación y los enlaces públicos siguen siendo válidos para cualquiera que posea el token hasta revocación.
 
 ## Verificación
 
+Comandos usados para validar la actualización:
+
 ```powershell
-npm test
 npm run build
-npm exec -w backend prisma validate
-# Con base migrada y datos de ejemplo:
-npm run test:integration -w backend
+npm test
+node --env-file=backend/tmp/qa.env backend/scripts/deploy.js
+node --env-file=backend/tmp/qa.env --test backend/test/integration.js
+python -m unittest discover -s backend/test -p "test_*.py"
 ```
 
-La prueba de integración crea únicamente registros con identificadores aleatorios, comprueba rollback tras una cabecera y detalle válidos seguidos por un detalle con FK inválida, pertenencia del vehículo en PostgreSQL, importes, snapshot del precio, autenticación y revocación pública; limpia sus registros al terminar.
+También se revisó visualmente el login, el tablero, la búsqueda/paginación, el formulario con totales automáticos, el aviso de cambios sin guardar, el menú móvil y los PDF renderizados a imagen.
 
-## Límites y ampliaciones
+## Ampliaciones recomendadas
 
-Esta entrega es una base local para un solo taller. Para un despliegue con varios operadores, agregar gestión de usuarios, roles, recuperación de contraseña, auditoría y copias de seguridad. El limitador en memoria debe sustituirse por uno compartido si se ejecutan varias instancias. El historial muestra los últimos 100 registros, sin búsqueda ni paginación. Las cotizaciones guardadas conservan su contenido; se puede cambiar estado, generar/revocar enlace y crear otra propuesta, pero no editar sus líneas desde la interfaz. No incluye inventario, adjuntos fotográficos, firma electrónica, envío de correo ni integración tributaria. Los nuevos módulos pueden referenciar Vehicle, Quote e Item sin alterar los precios históricos.
+Para crecer el sistema, los siguientes módulos pueden integrarse sin romper los precios históricos ya congelados en cotizaciones:
 
-Referencias de implementación: [transacciones Prisma 6](https://www.prisma.io/docs/orm/v6/prisma-client/queries/transactions) y [Tailwind con Vite](https://tailwindcss.com/docs/installation/using-vite).
-
-## Validación de esta actualización
-
-Pasaron 7 pruebas unitarias, la integración PostgreSQL (login, cookie, CSRF, rechazo de Bearer, PDF autenticado, logout y revocación), y la compilación Vite. Se renderizó y revisó el PDF de ejemplo de una página, además de páginas representativas de una cotización de estrés con 100 líneas y notas extensas. Referencias: [scrypt de Node.js](https://nodejs.org/download/release/v22.12.0/docs/api/crypto.html) y [tablas ReportLab](https://docs.reportlab.com/reportlab/userguide/ch7_tables/).
+- Roles y permisos por usuario.
+- Inventario de repuestos e insumos.
+- Fotografías de daños por cotización.
+- Flujo de reparación por estado de taller.
+- Envío de cotizaciones por correo o WhatsApp.
+- Auditoría de cambios y respaldo programado de PostgreSQL.
