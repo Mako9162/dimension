@@ -10,7 +10,7 @@ export default function useIdleSession(logged, onLogout) {
     const timer = setInterval(async () => {
       if (warning || Date.now() - lastActivity < 15 * 60000) return;
       warning = true;
-      const answer = await Swal.fire({ title: '¿Sigues trabajando?', text: 'Tu sesión se cerrará en 5 minutos por inactividad. Puedes seguir trabajando sin perder esta vista.', icon: 'info', showCancelButton: true, confirmButtonText: 'Seguir trabajando', cancelButtonText: 'Cerrar sesión', timer: 5 * 60000, timerProgressBar: true, allowOutsideClick: false, allowEscapeKey: false, confirmButtonColor: '#12685c' });
+      const answer = await Swal.fire({ title: '¿Sigues trabajando?', text: 'Tu sesión se cerrará en 5 minutos por inactividad. Puedes seguir trabajando sin perder esta vista.', icon: 'info', showCancelButton: true, confirmButtonText: 'Seguir trabajando', cancelButtonText: 'Cerrar sesión', timer: 5 * 60000, timerProgressBar: true, allowOutsideClick: false, allowEscapeKey: false, customClass: { confirmButton: 'brand-confirm' } });
       warning = false; lastActivity = Date.now();
       if (!disposed && !answer.isConfirmed) onLogout();
     }, 10000);

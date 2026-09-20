@@ -199,7 +199,7 @@ export default function Registry({ type, records, customers, categoriesList = []
           <div className="space-y-6">
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Nombre del taller</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Nombre del taller</span>
                 <input
                   type="text"
                   required
@@ -209,7 +209,7 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
 
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Nombre del encargado / representante</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Nombre del encargado / representante</span>
                 <input
                   type="text"
                   value={form.ownerName ?? ''}
@@ -218,7 +218,7 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
 
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">RUT / Identificador fiscal</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">RUT / Identificador fiscal</span>
                 <input
                   type="text"
                   value={form.taxId ?? ''}
@@ -227,7 +227,7 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
 
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Dirección</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Dirección</span>
                 <input
                   type="text"
                   value={form.address ?? ''}
@@ -236,7 +236,7 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
 
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Teléfono</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Teléfono</span>
                 <input
                   type="text"
                   value={form.phone ?? ''}
@@ -245,7 +245,7 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
 
               <label>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Correo electrónico</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Correo electrónico</span>
                 <input
                   type="email"
                   value={form.email ?? ''}
@@ -254,8 +254,8 @@ export default function Registry({ type, records, customers, categoriesList = []
               </label>
             </div>
 
-            <div className="border-t border-slate-200 pt-5">
-              <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4">Imágenes Institucionales</h3>
+            <div className="border-t border-zinc-200 pt-5">
+              <h3 className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-4">Imágenes Institucionales</h3>
               <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
                 <ImageField
                   id="file-logo"
@@ -274,9 +274,9 @@ export default function Registry({ type, records, customers, categoriesList = []
               </div>
             </div>
 
-            <div className="border-t border-slate-200 pt-5">
+            <div className="border-t border-zinc-200 pt-5">
               <label className="block">
-                <span className="block text-xs font-semibold text-slate-700 mb-1">Términos y condiciones por defecto</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">Términos y condiciones por defecto</span>
                 <textarea
                   rows={4}
                   maxLength={10000}
@@ -292,7 +292,7 @@ export default function Registry({ type, records, customers, categoriesList = []
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             {config.fields.map(([key, label, kind = 'text', required]) => (
               <label key={key} className={kind === 'textarea' ? 'col-span-1 sm:col-span-2' : ''}>
-                <span className="block text-xs font-semibold text-slate-700 mb-1">{label}</span>
+                <span className="block text-xs font-semibold text-zinc-700 mb-1">{label}</span>
                 {kind === 'textarea' ? (
                   <textarea
                     value={form[key] ?? ''}
@@ -404,7 +404,7 @@ export default function Registry({ type, records, customers, categoriesList = []
                   </thead>
                   <tbody>
                     {paginatedRecords.map(row => (
-                      <tr key={row.id} className={form.id === row.id ? 'bg-slate-50 font-medium' : ''}>
+                      <tr key={row.id} className={form.id === row.id ? 'bg-zinc-50 font-medium' : ''}>
                         {type === 'customers' && (
                           <>
                             <td>
@@ -412,7 +412,7 @@ export default function Registry({ type, records, customers, categoriesList = []
                               <p>RUT: {row.taxId}</p>
                             </td>
                             <td>
-                              <span className="text-xs text-slate-700 block">{row.phone || row.email || 'Sin contacto'}</span>
+                              <span className="text-xs text-zinc-700 block">{row.phone || row.email || 'Sin contacto'}</span>
                               {row.address && <p className="truncate max-w-[150px]">{row.address}</p>}
                             </td>
                           </>
@@ -427,7 +427,7 @@ export default function Registry({ type, records, customers, categoriesList = []
                               <p>{row.year} · {row.color || 'Sin color'}</p>
                             </td>
                             <td>
-                              <span className="text-xs text-slate-700">
+                              <span className="text-xs text-zinc-700">
                                 {customers.find(c => c.id === row.customerId)?.name || '-'}
                               </span>
                             </td>
@@ -444,7 +444,7 @@ export default function Registry({ type, records, customers, categoriesList = []
                             </td>
                             <td>
                               <strong>{money(row.price)}</strong>
-                              <p className="text-xs text-slate-400">Costo: {money(row.cost)}</p>
+                              <p className="text-xs text-zinc-400">Costo: {money(row.cost)}</p>
                             </td>
                           </>
                         )}
@@ -509,9 +509,9 @@ export default function Registry({ type, records, customers, categoriesList = []
             <p className="hint mt-1">Estos datos se incorporan al guardar una nueva cotización. Las cotizaciones anteriores conservan sus datos originales.</p>
           </div>
 
-          <div className="panel bg-slate-50 border border-slate-200">
-            <h3 className="font-bold text-slate-800 text-sm mb-2">🔒 Seguridad de la cuenta</h3>
-            <p className="text-xs text-slate-600 mb-4">
+          <div className="panel bg-zinc-50 border border-zinc-200">
+            <h3 className="font-bold text-zinc-800 text-sm mb-2">🔒 Seguridad de la cuenta</h3>
+            <p className="text-xs text-zinc-600 mb-4">
               Puedes cambiar la contraseña de acceso al sistema en cualquier momento.
             </p>
             <button
@@ -546,7 +546,7 @@ export default function Registry({ type, records, customers, categoriesList = []
 function ImageField({ label, value, onChange, onUpload, id }) {
   return (
     <div className="space-y-2">
-      <span className="block text-xs font-semibold text-slate-700">{label}</span>
+      <span className="block text-xs font-semibold text-zinc-700">{label}</span>
       <div className="flex gap-2 items-center">
         <input
           type="text"
@@ -572,10 +572,10 @@ function ImageField({ label, value, onChange, onUpload, id }) {
         />
       </div>
       {value && (
-        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2.5 mt-2">
+        <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 mt-2">
           <div className="flex items-center gap-3 overflow-hidden">
             <img src={assetUrl(value)} alt="Vista previa" className="h-10 w-auto max-w-[140px] object-contain border bg-white rounded p-1 shadow-sm" />
-            <span className="text-xs text-slate-600 truncate max-w-[140px]">
+            <span className="text-xs text-zinc-600 truncate max-w-[140px]">
               {value.startsWith('data:') ? 'Imagen cargada' : value}
             </span>
           </div>

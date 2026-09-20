@@ -32,7 +32,7 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
         <div>
           <img className="logo" src={assetUrl(companyLogo(company.logoUrl))} alt={`Logo de ${companyDisplayName}`} />
           <h2>{companyDisplayName}</h2>
-          {company.ownerName && <p className="font-semibold text-emerald-800">{company.ownerName}</p>}
+          {company.ownerName && <p className="font-semibold text-ink">{company.ownerName}</p>}
           <p>{company.taxId}</p>
           <p>{company.address}</p>
           <p>{company.phone} {company.email}</p>
@@ -51,17 +51,17 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
       <section className="grid gap-8 sm:grid-cols-2 my-8">
         <div>
           <span className="eyebrow">DATOS DEL CLIENTE</span>
-          <h3 className="text-base text-emerald-900 mt-1">{customer.name}</h3>
-          <p className="text-xs text-slate-600 mt-1">RUT: <strong>{customer.taxId}</strong></p>
-          {customer.address && <p className="text-xs text-slate-600">Dirección: {customer.address}</p>}
-          {customer.phone && <p className="text-xs text-slate-600">Teléfono: {customer.phone}</p>}
-          {customer.email && <p className="text-xs text-slate-600">Correo: {customer.email}</p>}
+          <h3 className="text-base text-ink mt-1">{customer.name}</h3>
+          <p className="text-xs text-zinc-600 mt-1">RUT: <strong>{customer.taxId}</strong></p>
+          {customer.address && <p className="text-xs text-zinc-600">Dirección: {customer.address}</p>}
+          {customer.phone && <p className="text-xs text-zinc-600">Teléfono: {customer.phone}</p>}
+          {customer.email && <p className="text-xs text-zinc-600">Correo: {customer.email}</p>}
         </div>
         <div>
           <span className="eyebrow">DATOS DEL VEHÍCULO</span>
-          <h3 className="text-base text-emerald-900 mt-1">{vehicle.brand} {vehicle.model} · {vehicle.year}</h3>
-          <p className="text-xs text-slate-600 mt-1">Patente: <strong>{vehicle.plate}</strong> {vehicle.color ? `· Color: ${vehicle.color}` : ''}</p>
-          {vehicle.vin && <p className="text-xs text-slate-600">VIN: {vehicle.vin}</p>}
+          <h3 className="text-base text-ink mt-1">{vehicle.brand} {vehicle.model} · {vehicle.year}</h3>
+          <p className="text-xs text-zinc-600 mt-1">Patente: <strong>{vehicle.plate}</strong> {vehicle.color ? `· Color: ${vehicle.color}` : ''}</p>
+          {vehicle.vin && <p className="text-xs text-zinc-600">VIN: {vehicle.vin}</p>}
         </div>
       </section>
 
@@ -97,7 +97,7 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
         <p className="grand-total"><span>Total CLP</span><b>{money(q.total)}</b></p>
         {totalPaid > 0 && (
           <>
-            <p className="text-emerald-700 font-bold border-t border-slate-200 mt-2 pt-2 flex justify-between">
+            <p className="text-emerald-700 font-bold border-t border-zinc-200 mt-2 pt-2 flex justify-between">
               <span>Total Abonado:</span><b>{money(totalPaid)}</b>
             </p>
             <p className="text-rose-700 font-bold flex justify-between">
@@ -108,14 +108,14 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
       </div>
 
       {/* Historial de Recibos y Abonos */}
-      <section className="payment-receipts-section mt-8 pt-6 border-t border-slate-200 print-hidden">
+      <section className="payment-receipts-section mt-8 pt-6 border-t border-zinc-200 print-hidden">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-800 inline-flex items-center gap-2">
+            <h3 className="text-base font-bold text-zinc-800 inline-flex items-center gap-2">
               <span>🧾 Recibos de Dinero y Abonos</span>
               <span className={`badge-payment ${paymentStatus.toLowerCase()}`}>{paymentStatus}</span>
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-zinc-500">
               Monto Pagado: <strong className="text-emerald-700">{money(totalPaid)}</strong> · Saldo Pendiente: <strong className="text-rose-600">{money(remainingBalance)}</strong>
             </p>
           </div>
@@ -128,7 +128,7 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
         </div>
 
         {(!q.receipts || q.receipts.length === 0) ? (
-          <p className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+          <p className="text-xs text-zinc-400 italic bg-zinc-50 p-4 rounded-lg border border-zinc-200 text-center">
             No se han registrado abonos para esta cotización aún.
           </p>
         ) : (
@@ -199,13 +199,13 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
       {company.signatureUrl && (
         <div className="mt-6 flex flex-col items-start">
           <img src={assetUrl(company.signatureUrl)} alt="Firma digital" className="h-14 object-contain" />
-          <span className="text-xs font-semibold text-slate-700 border-t border-slate-300 pt-1 mt-1">
+          <span className="text-xs font-semibold text-zinc-700 border-t border-zinc-300 pt-1 mt-1">
             {company.ownerName || company.name}
           </span>
         </div>
       )}
 
-      <footer className="mt-8 text-center text-xs text-slate-500 pt-4 border-t border-slate-200">
+      <footer className="mt-8 text-center text-xs text-zinc-500 pt-4 border-t border-zinc-200">
         Gracias por confiar en {company.name}.
       </footer>
 

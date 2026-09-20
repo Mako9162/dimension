@@ -46,8 +46,8 @@ export default function CategoryModal({ categories = [], reload, onClose }) {
     <div className="modal-backdrop print-hidden" onClick={onClose}>
       <div className="modal-panel max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-800">🏷️ Administrar Categorías</h2>
-          <button type="button" className="text-slate-400 hover:text-slate-600 font-bold" onClick={onClose}>✕</button>
+          <h2 className="text-lg font-bold text-zinc-800">🏷️ Administrar Categorías</h2>
+          <button type="button" className="text-zinc-400 hover:text-zinc-600 font-bold" onClick={onClose}>✕</button>
         </div>
 
         <form onSubmit={handleAdd} className="flex gap-2 mb-6">
@@ -65,15 +65,15 @@ export default function CategoryModal({ categories = [], reload, onClose }) {
           </button>
         </form>
 
-        <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">Categorías disponibles ({categories.length})</h3>
+        <h3 className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Categorías disponibles ({categories.length})</h3>
         
-        <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-lg bg-slate-50">
+        <div className="max-h-60 overflow-y-auto divide-y divide-zinc-100 border border-zinc-200 rounded-lg bg-zinc-50">
           {!categories.length ? (
-            <p className="p-3 text-xs text-slate-500 text-center">No hay categorías registradas.</p>
+            <p className="p-3 text-xs text-zinc-500 text-center">No hay categorías registradas.</p>
           ) : (
             categories.map(cat => (
               <div key={cat.id} className="flex justify-between items-center p-3 hover:bg-white transition-colors">
-                <span className="text-sm font-semibold text-slate-700">{cat.name}</span>
+                <span className="text-sm font-semibold text-zinc-700">{cat.name}</span>
                 <button
                   type="button"
                   className="text-rose-600 hover:bg-rose-50 p-1 rounded text-xs"

@@ -49,20 +49,20 @@ export default function ReceiptModal({ quote, onClose, onSaved }) {
   return (
     <div className="modal-backdrop print-hidden">
       <div className="modal-panel">
-        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-800">Registrar Recibo de Dinero / Abono</h2>
-          <button className="text-slate-400 hover:text-slate-600 text-xl font-bold" onClick={onClose}>×</button>
+        <div className="flex justify-between items-center mb-4 pb-3 border-b border-zinc-200">
+          <h2 className="text-lg font-bold text-zinc-800">Registrar Recibo de Dinero / Abono</h2>
+          <button className="text-zinc-400 hover:text-zinc-600 text-xl font-bold" onClick={onClose}>×</button>
         </div>
 
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4 text-xs space-y-1">
+        <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200 mb-4 text-xs space-y-1">
           <div className="flex justify-between"><span>Total Cotización N.º {String(quote.number).padStart(5, '0')}:</span> <strong>{money(total)}</strong></div>
           <div className="flex justify-between text-emerald-700"><span>Abonado a la fecha:</span> <strong>{money(totalPaid)}</strong></div>
-          <div className="flex justify-between text-rose-700 font-bold border-t border-slate-200 pt-1"><span>Saldo Pendiente Actual:</span> <strong>{money(maxBalance)}</strong></div>
+          <div className="flex justify-between text-rose-700 font-bold border-t border-zinc-200 pt-1"><span>Saldo Pendiente Actual:</span> <strong>{money(maxBalance)}</strong></div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Monto del Abono (CLP)*</label>
+            <label className="block text-xs font-semibold text-zinc-600 mb-1">Monto del Abono (CLP)*</label>
             <input
               type="number"
               required
@@ -77,7 +77,7 @@ export default function ReceiptModal({ quote, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Quien Entrega El Dinero</label>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">Quien Entrega El Dinero</label>
               <input
                 type="text"
                 required
@@ -89,7 +89,7 @@ export default function ReceiptModal({ quote, onClose, onSaved }) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Quien Recibe El Dinero (Editable)</label>
+              <label className="block text-xs font-semibold text-zinc-600 mb-1">Quien Recibe El Dinero (Editable)</label>
               <input
                 type="text"
                 required
@@ -102,7 +102,7 @@ export default function ReceiptModal({ quote, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Medio de Pago*</label>
+            <label className="block text-xs font-semibold text-zinc-600 mb-1">Medio de Pago*</label>
             <select
               value={paymentMethod}
               onChange={e => setPaymentMethod(e.target.value)}
@@ -115,7 +115,7 @@ export default function ReceiptModal({ quote, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Observaciones / N.º de Comprobante</label>
+            <label className="block text-xs font-semibold text-zinc-600 mb-1">Observaciones / N.º de Comprobante</label>
             <textarea
               rows={2}
               value={notes}
