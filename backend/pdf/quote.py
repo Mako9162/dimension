@@ -26,6 +26,9 @@ MUTED = colors.HexColor('#62626b')          # Gris medio
 LINE = colors.HexColor('#dedee2')           # Línea divisoria
 LIGHT_BG = colors.HexColor('#f9fafb')       # Superficie clara
 
+GREEN_TEXT = colors.HexColor('#15803d')
+GREEN_BG = colors.HexColor('#f0fdf4')
+
 WIDTH = 499.27
 
 
@@ -35,13 +38,17 @@ def currency(value):
 
 from safe_images import fetch_image_bytes
 
+FALLBACK_LOGO_BYTES = None
 
 def get_canvas_image(img_str):
+    global FALLBACK_LOGO_BYTES
     raw_bytes = fetch_image_bytes(img_str)
     if not raw_bytes:
-        fallback = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
-        if fallback.exists():
-            raw_bytes = fallback.read_bytes()
+        if FALLBACK_LOGO_BYTES is None:
+            fallback_path = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
+            if fallback_path.exists():
+                FALLBACK_LOGO_BYTES = fallback_path.read_bytes()
+        raw_bytes = FALLBACK_LOGO_BYTES
     if raw_bytes:
         try:
             return ImageReader(io.BytesIO(raw_bytes))
@@ -51,11 +58,11 @@ def get_canvas_image(img_str):
 
 
 def build_pdf(q, output):
-    normal = ParagraphStyle('Body', fontName='Helvetica', fontSize=9, leading=14, textColor=BRAND_DARK, spaceAfter=4, splitLongWords=True)
+    normal = ParagraphStyle('Body', fontName='Helvetica', fontSize=9, leading=13.5, textColor=BRAND_DARK, spaceAfter=3, splitLongWords=True)
     bold_text = ParagraphStyle('BoldText', parent=normal, fontName='Helvetica-Bold')
-    small = ParagraphStyle('Small', parent=normal, fontSize=8, leading=12, textColor=MUTED)
+    small = ParagraphStyle('Small', parent=normal, fontSize=8, leading=11.5, textColor=MUTED)
     label = ParagraphStyle('Label', parent=small, fontName='Helvetica-Bold', fontSize=8, textColor=BRAND_ACTION, spaceAfter=4)
-    heading = ParagraphStyle('Heading', parent=normal, fontName='Helvetica-Bold', fontSize=11, leading=15, textColor=BRAND_DARK, spaceBefore=16, spaceAfter=8, keepWithNext=True)
+    heading = ParagraphStyle('Heading', parent=normal, fontName='Helvetica-Bold', fontSize=10.5, leading=14, textColor=BRAND_DARK, spaceBefore=14, spaceAfter=6, keepWithNext=True)
     right = ParagraphStyle('Right', parent=normal, alignment=TA_RIGHT)
 
     def p(text, style=normal):
@@ -72,6 +79,14 @@ def build_pdf(q, output):
     except Exception:
         date = date_raw
 
+    # Cálculo de estado financiero
+    total_paid = Decimal(str(q.get('totalPaid', 0)))
+    total_val = Decimal(str(q.get('total', 0)))
+    rem_bal = Decimal(str(q.get('remainingBalance', max(0, total_val - total_paid))))
+    
+    pay_status = 'PAGADO' if total_paid >= total_val and total_val > 0 else ('ABONADO' if total_paid > 0 else 'PENDIENTE')
+    doc_status = q.get('status', 'BORRADOR').upper()
+
     def page(canvas, doc):
         canvas.saveState()
         
@@ -79,7 +94,7 @@ def build_pdf(q, output):
         canvas.setFillColor(BRAND_ACCENT)
         canvas.rect(0, 832, 595.27, 10, fill=1, stroke=0)
 
-        # Logo de la empresa (o nombre fallback)
+        # Logo de la empresa
         img_reader = get_canvas_image(company.get('logoUrl'))
         if img_reader:
             canvas.drawImage(img_reader, 48, 715, width=210, height=95, preserveAspectRatio=True, mask='auto')
@@ -99,7 +114,13 @@ def build_pdf(q, output):
         
         canvas.setFont('Helvetica', 8.5)
         canvas.setFillColor(MUTED)
-        canvas.drawRightString(547, 748, f'Fecha de Emisión: {date}')
+        canvas.drawRightString(547, 748, f'Fecha: {date}')
+        
+        # Insignias de Estado (Borrador/Enviada/Aprobada & Pendiente/Abonado/Pagado)
+        status_str = f"Estado: {doc_status} · Pago: {pay_status}"
+        canvas.setFont('Helvetica-Bold', 8)
+        canvas.setFillColor(BRAND_ACTION if pay_status != 'PAGADO' else GREEN_TEXT)
+        canvas.drawRightString(547, 734, status_str)
         
         # Línea divisoria de encabezado
         canvas.setStrokeColor(BRAND_BORDER)
@@ -113,7 +134,7 @@ def build_pdf(q, output):
         
         canvas.setFont('Helvetica', 7.5)
         canvas.setFillColor(MUTED)
-        canvas.drawString(48, 33, f'Cotización N.º {number} · Documento comercial no válido como factura')
+        canvas.drawString(48, 33, f'Cotización N.º {number} · Documento comercial Taller Dimensión')
         canvas.drawRightString(547, 33, f'Página {doc.page}')
         canvas.restoreState()
 
@@ -141,7 +162,7 @@ def build_pdf(q, output):
 
     # Bloque Datos del Cliente y Vehículo
     cust_info = [
-        p('PREPARADA PARA', label),
+        p('DATOS DEL CLIENTE', label),
         p(customer.get('name', ''), bold_text),
         p(f'RUT / ID: {customer.get("taxId", "-")}', small)
     ]
@@ -151,7 +172,7 @@ def build_pdf(q, output):
 
     veh_brand_model = f"{vehicle.get('brand','')} {vehicle.get('model','')} {vehicle.get('year','')}".strip()
     veh_info = [
-        p('VEHÍCULO A REPARAR', label),
+        p('DATOS DEL VEHÍCULO', label),
         p(veh_brand_model if veh_brand_model else 'Sin especificar', bold_text),
         p(f'Patente: {vehicle.get("plate","S/I")} | Color: {vehicle.get("color") or "S/I"}', small)
     ]
@@ -167,11 +188,11 @@ def build_pdf(q, output):
         ('TOPPADDING', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10)
     ]))
-    story += [info_table, Spacer(1, 14), p('Detalle de Trabajos y Repuestos', heading)]
+    story += [info_table, Spacer(1, 12), p('Detalle de Trabajos y Materiales', heading)]
 
     # Tabla de Detalle
     header_style = ParagraphStyle('TableHead', parent=small, textColor=colors.white, fontName='Helvetica-Bold', fontSize=7.5, leading=10)
-    rows = [[p(t, header_style) for t in ['DESCRIPCIÓN', 'CANT.', 'PRECIO NETO', 'TOTAL NETO']]]
+    rows = [[p(t, header_style) for t in ['DESCRIPCIÓN DEL TRABAJO / MATERIAL', 'CANT.', 'PRECIO NETO', 'TOTAL NETO']]]
     categories = {'REPUESTO': 'REPUESTO', 'INSUMO': 'INSUMO', 'MANO_OBRA': 'MANO DE OBRA'}
 
     tag_style = ParagraphStyle('TagStyle', parent=small, fontName='Helvetica-Bold', fontSize=7, textColor=BRAND_ACTION)
@@ -195,12 +216,12 @@ def build_pdf(q, output):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 10),
         ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
         ('LINEBELOW', (0, 1), (-1, -1), 0.5, LINE)
     ]))
-    story += [table, Spacer(1, 14)]
+    story += [table, Spacer(1, 12)]
 
     # Totales
     total_style = ParagraphStyle('TotalVal', parent=right, fontName='Helvetica-Bold', fontSize=14, leading=18, textColor=colors.white)
@@ -212,9 +233,7 @@ def build_pdf(q, output):
         [p('TOTAL CLP', total_lbl_style), p(currency(q.get('total', 0)), total_style)],
     ]
 
-    total_paid = Decimal(str(q.get('totalPaid', 0)))
     if total_paid > 0:
-        rem_bal = Decimal(str(q.get('remainingBalance', 0)))
         totals_rows.append([
             p('Total Abonado', ParagraphStyle('PaidLbl', fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#15803d'))),
             p(currency(total_paid), ParagraphStyle('PaidVal', parent=right, fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=colors.HexColor('#15803d')))
@@ -242,12 +261,43 @@ def build_pdf(q, output):
     totals.setStyle(TableStyle(t_styles))
     story.append(KeepTogether([totals]))
 
+    # Historial de Abonos / Recibos si existen
+    receipts = q.get('receipts', [])
+    if receipts:
+        story.append(p('Historial de Abonos Registrados', heading))
+        rec_rows = [[p(t, header_style) for t in ['RECIBO N.º', 'FECHA', 'MEDIO DE PAGO', 'MONTO']]]
+        methods_map = {'EFECTIVO': 'Efectivo', 'TRANSFERENCIA': 'Transferencia', 'TARJETA_DEBITO': 'T. Débito', 'TARJETA_CREDITO': 'T. Crédito', 'CHEQUE': 'Cheque', 'OTRO': 'Otro'}
+        for r_item in receipts:
+            r_num = str(r_item.get('number', 0)).zfill(5)
+            r_date_raw = r_item.get('date', '')
+            try:
+                r_date = datetime.fromisoformat(r_date_raw.replace('Z', '+00:00')).strftime('%d/%m/%Y')
+            except Exception:
+                r_date = r_date_raw
+            rec_rows.append([
+                p(f"Recibo N.º {r_num}", bold_text),
+                p(r_date, small),
+                p(methods_map.get(r_item.get('paymentMethod'), r_item.get('paymentMethod','')), small),
+                p(currency(r_item.get('amount', 0)), ParagraphStyle('RecAmt', parent=right, fontName='Helvetica-Bold', textColor=GREEN_TEXT))
+            ])
+        rec_table = Table(rec_rows, colWidths=[130, 100, 140, 129.27], hAlign='LEFT')
+        rec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), BRAND_DARK),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, GREEN_BG]),
+            ('LINEBELOW', (0, 1), (-1, -1), 0.5, LINE)
+        ]))
+        story += [Spacer(1, 8), rec_table]
+
     for title, text in [('Observaciones y Plazo Estimado', q.get('observations')), ('Términos y Condiciones', q.get('terms'))]:
         if text:
             story.append(p(title, heading))
             story.extend(p(part) for part in text.split('\n') if part.strip())
 
-    story += [Spacer(1, 22), p(f'Gracias por confiar en {company.get("name","Taller Dimensión")}.', small)]
+    story += [Spacer(1, 20), p(f'Gracias por confiar en {company.get("name","Taller Dimensión")}.', small)]
     doc.build(story, onFirstPage=page, onLaterPages=page)
 
 

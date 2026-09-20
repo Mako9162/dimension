@@ -40,13 +40,17 @@ def p(text, style):
 
 from safe_images import fetch_image_bytes
 
+FALLBACK_LOGO_BYTES = None
 
 def get_canvas_image(img_str):
+    global FALLBACK_LOGO_BYTES
     raw_bytes = fetch_image_bytes(img_str)
     if not raw_bytes:
-        fallback = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
-        if fallback.exists():
-            raw_bytes = fallback.read_bytes()
+        if FALLBACK_LOGO_BYTES is None:
+            fallback_path = Path(__file__).resolve().parents[1] / 'brand/taller-dimension.png'
+            if fallback_path.exists():
+                FALLBACK_LOGO_BYTES = fallback_path.read_bytes()
+        raw_bytes = FALLBACK_LOGO_BYTES
     if raw_bytes:
         try:
             return ImageReader(io.BytesIO(raw_bytes))
@@ -61,19 +65,21 @@ from PIL import Image as PILImage
 def make_signature_transparent(img_bytes):
     try:
         img = PILImage.open(io.BytesIO(img_bytes)).convert('RGBA')
+        # OPTIMIZACIÓN CRÍTICA: Thumbnail a 350x140 max para iterar en milisegundos
+        img.thumbnail((350, 140), PILImage.Resampling.LANCZOS)
         pixels = list(img.getdata())
         has_alpha = any(p[3] < 200 for p in pixels)
         if has_alpha:
-            return img_bytes
+            out = io.BytesIO()
+            img.save(out, format='PNG')
+            return out.getvalue()
         lums = [0.299 * r + 0.587 * g + 0.114 * b for r, g, b, _ in pixels]
         max_lum = max(lums) if lums else 255
         threshold = max(110, min(165, max_lum * 0.78))
-        new_pixels = []
-        for (r, g, b, a), lum in zip(pixels, lums):
-            if lum >= threshold:
-                new_pixels.append((255, 255, 255, 0))
-            else:
-                new_pixels.append((int(r * 0.8), int(g * 0.8), int(b * 0.8), 255))
+        new_pixels = [
+            (255, 255, 255, 0) if lum >= threshold else (int(r * 0.8), int(g * 0.8), int(b * 0.8), 255)
+            for (r, g, b, a), lum in zip(pixels, lums)
+        ]
         img.putdata(new_pixels)
         out = io.BytesIO()
         img.save(out, format='PNG')
@@ -243,11 +249,9 @@ def build_pdf(r, output):
     story += [pay_details, Spacer(1, 14)]
 
     # Resumen Estado Financiero
-    sub = Decimal(str(quote.get('subtotal', 0)))
-    tax = Decimal(str(quote.get('tax', 0)))
     tot = Decimal(str(quote.get('total', 0)))
     tot_paid = Decimal(str(quote.get('totalPaid', 0)))
-    rem_bal = Decimal(str(quote.get('remainingBalance', 0)))
+    rem_bal = Decimal(str(quote.get('remainingBalance', max(0, tot - tot_paid))))
 
     fin_rows = [
         [p('Total Cotización:', normal), p(currency(tot), right)],
