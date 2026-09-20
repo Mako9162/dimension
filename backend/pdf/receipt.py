@@ -105,7 +105,7 @@ def build_pdf(r, output):
         
         img_reader = get_canvas_image(company.get('logoUrl'))
         if img_reader:
-            canvas.drawImage(img_reader, 48, 743, width=220, height=75, preserveAspectRatio=True, mask='auto')
+            canvas.drawImage(img_reader, 48, 711, width=220, height=110, preserveAspectRatio=True, mask='auto')
         else:
             name_p = p(company['name'], ParagraphStyle('HHead', fontName='Helvetica-Bold', fontSize=14, textColor=GREEN))
             _, h = name_p.wrap(260, 70)
@@ -124,7 +124,7 @@ def build_pdf(r, output):
         canvas.drawRightString(547, 733, f'Cotización N.º {quote_num}')
         
         canvas.setStrokeColor(colors.HexColor('#d6e3dc'))
-        canvas.line(48, 720, 547, 720)
+        canvas.line(48, 699, 547, 699)
         canvas.line(48, 48, 547, 48)
         canvas.setFont('Helvetica', 7)
         canvas.drawString(48, 33, f'Recibo N.º {receipt_num} | Comprobante de pago - Taller Dimensión')
@@ -132,7 +132,7 @@ def build_pdf(r, output):
         canvas.restoreState()
 
     doc = SimpleDocTemplate(
-        output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=126, bottomMargin=64,
+        output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=158, bottomMargin=64,
         title=f'Recibo N.º {receipt_num} - {company["name"]}'
     )
 
@@ -220,7 +220,7 @@ def build_pdf(r, output):
         [p('Total Abonado a la Fecha', ParagraphStyle('G', fontName='Helvetica-Bold', fontSize=9, textColor=GREEN_TEXT)), p(currency(paid_so_far), ParagraphStyle('GV', fontName='Helvetica-Bold', fontSize=9, textColor=GREEN_TEXT, alignment=TA_RIGHT))],
         [p('SALDO PENDIENTE RESTANTE', ParagraphStyle('R', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#b91c1c'))),
          p(currency(rem_balance), ParagraphStyle('RV', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#b91c1c'), alignment=TA_RIGHT))]
-    ], colWidths=[140, 135], hAlign='RIGHT')
+    ], colWidths=[185, 90], hAlign='RIGHT')
     status_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#fef2f2')),
         ('TOPPADDING', (0, 0), (-1, -1), 6),

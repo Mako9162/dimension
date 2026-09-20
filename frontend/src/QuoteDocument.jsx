@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { money, downloadPdf, assetUrl } from './api';
 import ReceiptModal from './components/ReceiptModal';
+import { companyLogo } from './brand';
 
 export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt, isPublic = false }) {
   const company = q.companySnapshot || {};
@@ -29,7 +30,7 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
     <article className="document">
       <header className="document-head">
         <div>
-          {company.logoUrl && <img className="logo" src={assetUrl(company.logoUrl)} alt="Logo del taller" />}
+          <img className="logo" src={assetUrl(companyLogo(company.logoUrl))} alt={`Logo de ${companyDisplayName}`} />
           <h2>{companyDisplayName}</h2>
           {company.ownerName && <p className="font-semibold text-emerald-800">{company.ownerName}</p>}
           <p>{company.taxId}</p>

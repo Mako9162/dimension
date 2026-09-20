@@ -73,7 +73,7 @@ def build_pdf(q, output):
         
         img_reader = get_canvas_image(company.get('logoUrl'))
         if img_reader:
-            canvas.drawImage(img_reader, 48, 743, width=220, height=75, preserveAspectRatio=True, mask='auto')
+            canvas.drawImage(img_reader, 48, 711, width=220, height=110, preserveAspectRatio=True, mask='auto')
         else:
             name = p(company['name'], heading)
             _, h = name.wrap(260, 70)
@@ -88,14 +88,14 @@ def build_pdf(q, output):
         canvas.setFillColor(MUTED)
         canvas.drawRightString(547, 746, f'Emisión: {date}')
         canvas.setStrokeColor(colors.HexColor('#d6e3dc'))
-        canvas.line(48, 731, 547, 731)
+        canvas.line(48, 699, 547, 699)
         canvas.line(48, 48, 547, 48)
         canvas.setFont('Helvetica', 7)
         canvas.drawString(48, 33, f'Cotización {number} | Documento comercial - no válido como factura')
         canvas.drawRightString(547, 33, f'Página {doc.page}')
         canvas.restoreState()
         
-    doc = SimpleDocTemplate(output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=126, bottomMargin=64, title=f'Cotización {number} - {company["name"]}', author=company['name'])
+    doc = SimpleDocTemplate(output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=158, bottomMargin=64, title=f'Cotización {number} - {company["name"]}', author=company['name'])
     story = []
     
     company_details = []
