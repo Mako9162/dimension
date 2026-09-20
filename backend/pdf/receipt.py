@@ -1,4 +1,4 @@
-"""PDF A4 de Recibos de Dinero / Comprobantes de Pago.
+"""PDF A4 de Recibos de Dinero / Comprobantes de Pago (Taller Dimensión).
 JSON por stdin, PDF binario por stdout.
 """
 import io
@@ -15,10 +15,16 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, Image
 
-GREEN = colors.HexColor('#12594f')
-INK = colors.HexColor('#233c3a')
-MUTED = colors.HexColor('#6a7e7b')
-LIGHT_BG = colors.HexColor('#f7f9f8')
+# Paleta de colores oficial Taller Dimensión
+BRAND_DARK = colors.HexColor('#18191d')     # Carbón profundo
+BRAND_ACTION = colors.HexColor('#a84200')   # Naranja terracota / acción
+BRAND_ACCENT = colors.HexColor('#ff790d')   # Naranja brillante / acento
+BRAND_SOFT = colors.HexColor('#fff2e7')     # Fondo naranja suave
+BRAND_BORDER = colors.HexColor('#f4d5ba')   # Borde naranja tenue
+MUTED = colors.HexColor('#62626b')          # Gris medio
+LINE = colors.HexColor('#dedee2')           # Línea divisoria
+LIGHT_BG = colors.HexColor('#f9fafb')       # Superficie clara
+
 GREEN_BG = colors.HexColor('#f0fdf4')
 GREEN_TEXT = colors.HexColor('#15803d')
 WIDTH = 499.27
@@ -27,10 +33,13 @@ WIDTH = 499.27
 def currency(value):
     return '$' + format(Decimal(str(value)), ',.0f').replace(',', '.')
 
+
 def p(text, style):
     return Paragraph(escape(str(text or '')).replace('\n', '<br/>'), style)
 
+
 from safe_images import fetch_image_bytes
+
 
 def get_canvas_image(img_str):
     raw_bytes = fetch_image_bytes(img_str)
@@ -45,7 +54,9 @@ def get_canvas_image(img_str):
             pass
     return None
 
+
 from PIL import Image as PILImage
+
 
 def make_signature_transparent(img_bytes):
     try:
@@ -70,6 +81,7 @@ def make_signature_transparent(img_bytes):
     except Exception:
         return img_bytes
 
+
 def resolve_image(img_str, max_w=140, max_h=50, is_signature=False):
     raw_bytes = fetch_image_bytes(img_str)
     if not raw_bytes:
@@ -82,74 +94,92 @@ def resolve_image(img_str, max_w=140, max_h=50, is_signature=False):
         pass
     return None
 
+
 def build_pdf(r, output):
-    normal = ParagraphStyle('Body', fontName='Helvetica', fontSize=9, leading=13, textColor=INK)
-    bold = ParagraphStyle('Bold', fontName='Helvetica-Bold', fontSize=9, leading=13, textColor=INK)
+    normal = ParagraphStyle('Body', fontName='Helvetica', fontSize=9, leading=13, textColor=BRAND_DARK)
+    bold = ParagraphStyle('Bold', fontName='Helvetica-Bold', fontSize=9, leading=13, textColor=BRAND_DARK)
     small = ParagraphStyle('Small', parent=normal, fontSize=8, leading=11, textColor=MUTED)
     right = ParagraphStyle('Right', parent=normal, alignment=TA_RIGHT)
-    heading = ParagraphStyle('Heading', parent=normal, fontName='Helvetica-Bold', fontSize=11, leading=14, textColor=GREEN, spaceBefore=12, spaceAfter=6)
+    heading = ParagraphStyle('Heading', parent=normal, fontName='Helvetica-Bold', fontSize=11, leading=14, textColor=BRAND_ACTION, spaceBefore=14, spaceAfter=8)
 
-    quote = r['quote']
-    company = quote['companySnapshot']
-    customer = quote['customerSnapshot']
-    vehicle = quote['vehicleSnapshot']
+    quote = r.get('quote', {})
+    company = quote.get('companySnapshot', {})
+    customer = quote.get('customerSnapshot', {})
+    vehicle = quote.get('vehicleSnapshot', {})
     
-    receipt_num = str(r['number']).zfill(5)
-    quote_num = str(quote['number']).zfill(5)
-    date_str = datetime.fromisoformat(r['date'].replace('Z', '+00:00')).strftime('%d/%m/%Y %H:%M')
+    receipt_num = str(r.get('number', 0)).zfill(5)
+    quote_num = str(quote.get('number', 0)).zfill(5)
+    
+    date_raw = r.get('date', '')
+    try:
+        date_str = datetime.fromisoformat(date_raw.replace('Z', '+00:00')).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        date_str = date_raw
 
     def page(canvas, doc):
         canvas.saveState()
-        canvas.setFillColor(GREEN)
-        canvas.rect(0, 830, 595.27, 12, fill=1, stroke=0)
+        
+        # Barra superior naranja acento
+        canvas.setFillColor(BRAND_ACCENT)
+        canvas.rect(0, 832, 595.27, 10, fill=1, stroke=0)
         
         img_reader = get_canvas_image(company.get('logoUrl'))
         if img_reader:
-            canvas.drawImage(img_reader, 48, 711, width=220, height=110, preserveAspectRatio=True, mask='auto')
+            canvas.drawImage(img_reader, 48, 715, width=210, height=95, preserveAspectRatio=True, mask='auto')
         else:
-            name_p = p(company['name'], ParagraphStyle('HHead', fontName='Helvetica-Bold', fontSize=14, textColor=GREEN))
-            _, h = name_p.wrap(260, 70)
+            name_p = p(company.get('name', 'TALLER DIMENSIÓN'), ParagraphStyle('HHead', fontName='Helvetica-Bold', fontSize=15, textColor=BRAND_DARK))
+            _, h = name_p.wrap(250, 70)
             name_p.drawOn(canvas, 48, 780 - h)
             
         canvas.setFont('Helvetica-Bold', 9)
-        canvas.setFillColor(GREEN)
-        canvas.drawRightString(547, 790, 'RECIBO DE DINERO')
+        canvas.setFillColor(BRAND_ACTION)
+        canvas.drawRightString(547, 792, 'RECIBO DE DINERO')
+        
         canvas.setFont('Helvetica-Bold', 22)
-        canvas.drawRightString(547, 763, f'N.º {receipt_num}')
+        canvas.setFillColor(BRAND_DARK)
+        canvas.drawRightString(547, 765, f'N.º {receipt_num}')
+        
         canvas.setFont('Helvetica', 8)
         canvas.setFillColor(MUTED)
-        canvas.drawRightString(547, 746, f'Fecha: {date_str}')
-        canvas.setFont('Helvetica-Bold', 8)
-        canvas.setFillColor(INK)
-        canvas.drawRightString(547, 733, f'Cotización N.º {quote_num}')
+        canvas.drawRightString(547, 748, f'Fecha: {date_str}')
         
-        canvas.setStrokeColor(colors.HexColor('#d6e3dc'))
-        canvas.line(48, 699, 547, 699)
+        canvas.setFont('Helvetica-Bold', 8.5)
+        canvas.setFillColor(BRAND_ACTION)
+        canvas.drawRightString(547, 734, f'Cotización N.º {quote_num}')
+        
+        canvas.setStrokeColor(BRAND_BORDER)
+        canvas.setLineWidth(1)
+        canvas.line(48, 702, 547, 702)
+        
+        canvas.setStrokeColor(LINE)
+        canvas.setLineWidth(0.5)
         canvas.line(48, 48, 547, 48)
-        canvas.setFont('Helvetica', 7)
-        canvas.drawString(48, 33, f'Recibo N.º {receipt_num} | Comprobante de pago - Taller Dimensión')
+        
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(MUTED)
+        canvas.drawString(48, 33, f'Recibo N.º {receipt_num} · Comprobante de pago Taller Dimensión')
         canvas.drawRightString(547, 33, f'Página {doc.page}')
         canvas.restoreState()
 
     doc = SimpleDocTemplate(
-        output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=158, bottomMargin=64,
-        title=f'Recibo N.º {receipt_num} - {company["name"]}'
+        output, pagesize=(595.27, 841.89), leftMargin=48, rightMargin=48, topMargin=152, bottomMargin=64,
+        title=f'Recibo N.º {receipt_num} - {company.get("name","Taller Dimensión")}'
     )
 
     story = []
 
-    # Datos del Taller (debajo de la línea divisoria del encabezado, omitiendo nombre redundante si hay logo)
+    # Datos del Taller
     company_details = []
     if company.get('ownerName'): company_details.append(company['ownerName'])
-    if company.get('taxId'): company_details.append(company['taxId'])
+    if company.get('taxId'): company_details.append(f"RUT: {company['taxId']}")
     if company.get('address'): company_details.append(company['address'])
-    if company.get('phone'): company_details.append(company['phone'])
+    if company.get('phone'): company_details.append(f"Tel: {company['phone']}")
     if company.get('email'): company_details.append(company['email'])
 
     if any(company_details):
         story += [p(' | '.join(company_details), small), Spacer(1, 10)]
 
-    # Datos del cliente / vehículo (filtrando filas vacías)
+    # Datos del cliente / vehículo
     client_rows = [
         [p('Cliente:', bold), p(customer.get('name', ''), normal)],
     ]
@@ -168,14 +198,15 @@ def build_pdf(r, output):
 
     client_info = Table(client_rows, colWidths=[80, 419.27], hAlign='LEFT')
     client_info.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (0, 0), (-1, -1), BRAND_SOFT),
+        ('BOX', (0, 0), (-1, -1), 1, BRAND_BORDER),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, BRAND_BORDER),
     ]))
-    story += [client_info, Spacer(1, 10)]
+    story += [client_info, Spacer(1, 12)]
 
     # Detalle del Pago
     story.append(p('Detalle del Abono', heading))
@@ -186,77 +217,86 @@ def build_pdf(r, output):
         'CHEQUE': 'Cheque', 'OTRO': 'Otro medio de pago'
     }
 
-    amount_val = Decimal(str(r['amount']))
+    amount_val = Decimal(str(r.get('amount', 0)))
     paid_by = r.get('paidBy') or customer.get('name') or '-'
     received_by = r.get('receivedBy') or company.get('ownerName') or company.get('name') or '-'
 
     pay_details = Table([
         [p('MONTO RECIBIDO', ParagraphStyle('PayLbl', fontName='Helvetica-Bold', fontSize=10, leading=14, textColor=GREEN_TEXT)),
-         p(currency(amount_val), ParagraphStyle('PayVal', fontName='Helvetica-Bold', fontSize=15, leading=18, textColor=GREEN_TEXT, alignment=TA_RIGHT))],
+         p(currency(amount_val), ParagraphStyle('PayVal', fontName='Helvetica-Bold', fontSize=16, leading=20, textColor=GREEN_TEXT, alignment=TA_RIGHT))],
         [p('Entregado por:', bold), p(paid_by, right)],
         [p('Recibido por:', bold), p(received_by, ParagraphStyle('RecBy', parent=right, fontName='Helvetica-Bold'))],
-        [p('Medio de pago:', bold), p(methods_map.get(r['paymentMethod'], r['paymentMethod']), right)],
+        [p('Medio de pago:', bold), p(methods_map.get(r.get('paymentMethod'), r.get('paymentMethod', '')), right)],
         [p('Observaciones / N.º:', bold), p(r.get('notes') or 'Sin observaciones', right)],
     ], colWidths=[150, 349.27], hAlign='LEFT')
+
     pay_details.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), GREEN_BG),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#bbf7d0')),
+        ('BACKGROUND', (0, 0), (-1, 0), GREEN_BG),
+        ('BACKGROUND', (0, 1), (-1, -1), LIGHT_BG),
+        ('BOX', (0, 0), (-1, -1), 1, LINE),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, LINE),
     ]))
-    story.append(pay_details)
-    story.append(Spacer(1, 14))
+    story += [pay_details, Spacer(1, 14)]
 
-    # Resumen de Saldo
-    total_q = Decimal(str(quote['total']))
-    paid_so_far = Decimal(str(r.get('totalPaidSoFar', amount_val)))
-    rem_balance = max(Decimal('0'), total_q - paid_so_far)
+    # Resumen Estado Financiero
+    sub = Decimal(str(quote.get('subtotal', 0)))
+    tax = Decimal(str(quote.get('tax', 0)))
+    tot = Decimal(str(quote.get('total', 0)))
+    tot_paid = Decimal(str(quote.get('totalPaid', 0)))
+    rem_bal = Decimal(str(quote.get('remainingBalance', 0)))
 
-    status_table = Table([
-        [p('Total Cotización N.º ' + quote_num, normal), p(currency(total_q), right)],
-        [p('Total Abonado a la Fecha', ParagraphStyle('G', fontName='Helvetica-Bold', fontSize=9, textColor=GREEN_TEXT)), p(currency(paid_so_far), ParagraphStyle('GV', fontName='Helvetica-Bold', fontSize=9, textColor=GREEN_TEXT, alignment=TA_RIGHT))],
-        [p('SALDO PENDIENTE RESTANTE', ParagraphStyle('R', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor('#b91c1c'))),
-         p(currency(rem_balance), ParagraphStyle('RV', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#b91c1c'), alignment=TA_RIGHT))]
-    ], colWidths=[185, 90], hAlign='RIGHT')
-    status_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#fef2f2')),
+    fin_rows = [
+        [p('Total Cotización:', normal), p(currency(tot), right)],
+        [p('Total Acumulado Abonado:', ParagraphStyle('P2', parent=normal, fontName='Helvetica-Bold', textColor=GREEN_TEXT)),
+         p(currency(tot_paid), ParagraphStyle('P3', parent=right, fontName='Helvetica-Bold', textColor=GREEN_TEXT))],
+        [p('Saldo Pendiente:', ParagraphStyle('P4', parent=normal, fontName='Helvetica-Bold', textColor=colors.HexColor('#b91c1c') if rem_bal > 0 else GREEN_TEXT)),
+         p(currency(rem_bal), ParagraphStyle('P5', parent=right, fontName='Helvetica-Bold', textColor=colors.HexColor('#b91c1c') if rem_bal > 0 else GREEN_TEXT))]
+    ]
+    fin_table = Table(fin_rows, colWidths=[200, 299.27], hAlign='LEFT')
+    fin_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f5f9')),
+        ('BOX', (0, 0), (-1, -1), 0.5, LINE),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, LINE),
     ]))
-    story.append(KeepTogether([status_table]))
+    story += [p('Estado Financiero de la Cotización', heading), fin_table, Spacer(1, 25)]
 
-    # Cargar firma si existe
-    signature_element = resolve_image(company.get('signatureUrl'), max_w=140, max_h=50, is_signature=True)
+    # Firmas
+    sig_empresa = resolve_image(company.get('signatureUrl'), max_w=150, max_h=55, is_signature=True)
+    sig_cliente = resolve_image(r.get('clientSignatureUrl'), max_w=150, max_h=55, is_signature=True)
 
-    # Firma en 2 filas: Fila 0 = Espacio / Imagen de firma arriba. Fila 1 = Texto abajo.
-    story.append(Spacer(1, 25))
-    row_top = ['', '', signature_element if signature_element else Spacer(1, 40)]
-    row_bottom = [
-        p('Entregado Conforme (Cliente)', ParagraphStyle('S1', parent=small, alignment=TA_CENTER)),
-        '',
-        p('Recibido Conforme (Taller)', ParagraphStyle('S2', parent=small, alignment=TA_CENTER))
+    c_name = customer.get('name', 'Cliente')
+    rec_by = received_by
+
+    sig_row_img = [
+        sig_cliente if sig_cliente else Spacer(1, 55),
+        sig_empresa if sig_empresa else Spacer(1, 55)
+    ]
+    sig_row_text = [
+        Paragraph(f'_______________________<br/><b>Firma Entregado por</b><br/>{escape(str(c_name))}', ParagraphStyle('Sig1', parent=normal, alignment=TA_CENTER)),
+        Paragraph(f'_______________________<br/><b>Firma Recibido por</b><br/>{escape(str(rec_by))}', ParagraphStyle('Sig2', parent=normal, alignment=TA_CENTER))
     ]
 
-    sign_table = Table([row_top, row_bottom], colWidths=[190, 119.27, 190], hAlign='LEFT')
-    sign_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+    sig_table = Table([sig_row_img, sig_row_text], colWidths=[WIDTH / 2] * 2, hAlign='CENTER')
+    sig_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('LINEABOVE', (0, 1), (0, 1), 1, colors.HexColor('#94a3b8')),
-        ('LINEABOVE', (2, 1), (2, 1), 1, colors.HexColor('#94a3b8')),
-        ('TOPPADDING', (0, 1), (-1, 1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
-    story.append(KeepTogether([sign_table]))
+    story.append(KeepTogether([sig_table]))
 
     doc.build(story, onFirstPage=page, onLaterPages=page)
 
+
 if __name__ == '__main__':
-    receipt_data = json.loads(sys.stdin.buffer.read().decode('utf-8-sig'))
+    receipt = json.loads(sys.stdin.buffer.read().decode('utf-8-sig'))
     result = io.BytesIO()
-    build_pdf(receipt_data, result)
+    build_pdf(receipt, result)
     sys.stdout.buffer.write(result.getvalue())
