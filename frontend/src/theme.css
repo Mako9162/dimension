@@ -928,11 +928,28 @@ nav button .nav-active-dot {
 }
 
 .login {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   min-height: 100vh;
-  padding: 0;
-  background: #fff;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--surface);
+}
+
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: 1120px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 18px 60px #2021260c;
+  overflow: hidden;
 }
 
 .login-story {
@@ -940,7 +957,7 @@ nav button .nav-active-dot {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(40px,7vw,110px);
+  padding: clamp(32px,4vw,56px);
   background: radial-gradient(ellipse at 0% 100%, #603114 0%, transparent 68%), #18191d;
   color: #e1e1e6;
   position: relative;
@@ -952,52 +969,64 @@ nav button .nav-active-dot {
   font-size: 9px;
 }
 
-.login-story h1 {
+.login-story h2 {
   color: white;
-  font-size: clamp(30px,3vw,46px);
+  font-size: clamp(28px,2.7vw,38px);
   line-height: 1.22;
   letter-spacing: -1.2px;
-  margin: 25px 0 23px;
+  margin: 24px 0 18px;
   font-weight: 650;
+  text-wrap: balance;
 }
 
-.login-story h1 em {
+.login-story h2 em {
   font-style: normal;
   color: #ff9438;
 }
 
 .login-story>p {
-  font-size: 14px;
+  font-size: 13px;
   color: #c2c2ca;
-  max-width: 350px;
+  max-width: 380px;
   line-height: 1.9;
 }
 
-.login-car {
-  height: 200px;
-  position: relative;
+.login-workflow {
+  display: grid;
+  gap: 22px;
+  margin: 32px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.login-workflow li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.login-step-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px solid #ff9b4533;
+  background: #ff9b4510;
   color: #ff9b45;
-  padding-left: 40px;
 }
 
-.orbit {
-  position: absolute;
-  display: block;
-  left: 0;
-  width: 210px;
-  height: 110px;
-  border: 1px solid #ff9b453d;
-  border-radius: 50%;
-  transform: rotate(-22deg);
+.login-workflow strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f6f6f8;
 }
 
-.orbit-two {
-  width: 280px;
-  height: 150px;
-  left: -35px;
-  border-color: #c6c6ce3b;
+.login-workflow p {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #bdbdc5;
+  line-height: 1.65;
 }
 
 .login-promise {
@@ -1006,6 +1035,8 @@ nav button .nav-active-dot {
   gap: 13px;
   font-size: 11px;
   color: #c7b6a9;
+  border-top: 1px solid #ffffff1a;
+  padding-top: 22px;
 }
 
 .login-promise svg {
@@ -1019,41 +1050,51 @@ nav button .nav-active-dot {
 }
 
 .login-access {
-  padding: 40px 30px;
+  padding: 32px clamp(28px,4vw,56px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 35px;
   min-width: 0;
 }
 
 .login-card {
   width: 100%;
-  max-width: 365px;
+  max-width: 380px;
   background: white;
 }
 
 .login-logo {
-  margin: 0 0 36px;
+  margin: 0 auto 24px;
   width: 100%;
+  max-width: 260px;
   height: auto;
   display: block;
 }
 
-.login-card>.eyebrow {
+.login-heading .eyebrow {
   color: var(--muted);
   font-size: 9px;
 }
 
-.login-card h2 {
+.login-card h1 {
   font-size: 29px;
   letter-spacing: -.8px;
-  margin: 8px 0;
+  margin: 8px 0 10px;
 }
 
-.login-card>.hint {
+.login-heading .hint {
   font-size: 12px;
+}
+
+.login-fields {
+  display: grid;
+  gap: 18px;
+  margin: 24px 0 20px;
+}
+
+.login-card .error {
+  margin-bottom: 16px;
 }
 
 .login-card label {
@@ -1079,7 +1120,8 @@ nav button .nav-active-dot {
 .password-input button {
   position: absolute;
   right: 5px;
-  top: 5px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #76767e;
 }
 
@@ -1087,7 +1129,7 @@ nav button .nav-active-dot {
   width: 100%;
   justify-content: space-between;
   padding: 15px 19px;
-  margin-top: 9px;
+  margin-top: 0;
   min-height: 48px;
 }
 
@@ -1104,6 +1146,7 @@ nav button .nav-active-dot {
 .login-footer {
   font-size: 10px;
   color: var(--muted);
+  text-align: center;
 }
 
 .sr-only {
@@ -1461,31 +1504,31 @@ nav button .nav-active-dot {
   .document .logo {
     max-width: 260px;
   }
+}
+
+@media (max-width:900px) {
   .login {
-    grid-template-columns: 1fr;
-    min-height: 100dvh;
-    background: #f4f7f9;
+    padding: 24px 16px;
+    gap: 20px;
+  }
+  .login-layout {
+    grid-template-columns: minmax(0,1fr);
+    max-width: 440px;
+    border-radius: 18px;
   }
   .login-story {
     display: none;
   }
   .login-access {
-    padding: 30px 24px;
-    min-height: 100dvh;
-    gap: 25px;
+    padding: 28px 24px;
   }
   .login-card {
-    max-width: 390px;
-    background: white;
-    padding: 28px;
-    border: 1px solid #eeeef0;
-    border-radius: 18px;
-    box-shadow: 0 12px 50px #24242908;
+    max-width: 380px;
   }
   .login-logo {
-    margin-bottom: 28px;
+    max-width: 240px;
   }
-  .login-card h2 {
+  .login-card h1 {
     font-size: 27px;
   }
   .login-security {

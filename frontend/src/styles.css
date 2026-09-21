@@ -571,36 +571,6 @@ td p {
   margin: auto;
 }
 
-.login {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 25px;
-  background: radial-gradient(ellipse at top left,#eeeef0,transparent 65%),#edf2ed;
-}
-
-.login .panel {
-  max-width: 490px;
-  padding: 40px;
-  width: 100%;
-}
-
-.login-logo {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin: 0 0 24px;
-}
-
-.login h1 {
-  font-size: 27px;
-  margin: 13px 0;
-}
-
-.login .eyebrow {
-  display: block;
-}
-
 /* SweetAlert2 Toast Compacto y Discreto */
 .swal2-compact-toast {
   padding: 8px 14px !important;
