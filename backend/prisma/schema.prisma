@@ -105,6 +105,7 @@ model Quote {
   vehicle          Vehicle     @relation(fields: [vehicleId, customerId], references: [id, customerId], onDelete: Restrict)
   date             DateTime    @default(now())
   status           QuoteStatus @default(BORRADOR)
+  revision         Int         @default(1)
   observations     String      @default("")
   terms            String      @default("")
   taxRate          Decimal     @db.Decimal(5, 2)
@@ -117,9 +118,23 @@ model Quote {
   publicToken      String?     @unique
   lines            QuoteLine[]
   receipts         Receipt[]
+  acceptances      QuoteAcceptance[]
 
   @@index([customerId, date])
   @@index([vehicleId, customerId])
+}
+
+model QuoteAcceptance {
+  id            String   @id @default(uuid()) @db.Uuid
+  quoteId       String   @db.Uuid
+  quote         Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  revision      Int
+  acceptedBy    String   @db.VarChar(120)
+  acceptedAt    DateTime @default(now())
+  consentText   String
+  quoteSnapshot Json
+
+  @@unique([quoteId, revision])
 }
 
 model QuoteLine {

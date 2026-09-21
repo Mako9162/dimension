@@ -43,7 +43,7 @@ export function createApp(db) {
 
   app.get('/api/health', async (_req, res) => {
     await db.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', version: '2026.09.19' });
+    res.json({ status: 'ok', version: '2026.09.21-acceptance' });
   });
 
   // Rutas públicas (sin sesión)

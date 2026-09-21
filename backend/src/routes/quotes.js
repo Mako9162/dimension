@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { renderQuotePdf, renderReceiptPdf } from '../pdf.js';
-import { createQuote, updateQuote, deleteQuote, createReceipt, deleteReceipt, shareQuote, publicQuote, quoteInclude, HttpError } from '../quotes.js';
+import { createQuote, updateQuote, deleteQuote, createReceipt, deleteReceipt, shareQuote, setQuoteStatus, publicQuote, quoteInclude, HttpError } from '../quotes.js';
 
 export function createQuotesRouter(db) {
   const router = Router();
-  const listSelect = { id: true, number: true, date: true, status: true, total: true, customerSnapshot: true, vehicleSnapshot: true, receipts: { select: { amount: true } } };
+  const listSelect = { id: true, number: true, date: true, status: true, revision: true, total: true, customerSnapshot: true, vehicleSnapshot: true, receipts: { select: { amount: true } }, acceptances: { ...quoteInclude.acceptances, take: 1 } };
 
   router.get('/metrics', async (_req, res) => {
     const [groups, approved, paid] = await db.$transaction([
@@ -151,7 +151,7 @@ export function createQuotesRouter(db) {
 
   router.patch('/:id/status', async (req, res) => {
     const status = z.enum(['BORRADOR', 'ENVIADA', 'APROBADA']).parse(req.body.status);
-    res.json(await db.quote.update({ where: { id: z.string().uuid().parse(req.params.id) }, data: { status } }));
+    res.json(await setQuoteStatus(db, z.string().uuid().parse(req.params.id), status));
   });
 
   router.post('/:id/share', async (req, res) => {

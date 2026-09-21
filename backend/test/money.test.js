@@ -30,3 +30,15 @@ test('la vista pública excluye costos, contactos del cliente, VIN y token', () 
   assert.equal(result.publicToken, undefined);
   assert.equal(result.lines[0].cost, undefined);
 });
+
+test('la aceptación pública expone solo la confirmación vigente, sin snapshots ni historial privado', () => {
+  const quote = { revision: 2, customerSnapshot: {}, vehicleSnapshot: {}, lines: [], acceptances: [
+    { id: 'privado', revision: 1, acceptedBy: 'Nombre anterior', acceptedAt: '2026-09-20', quoteSnapshot: { notes: 'privado' } },
+    { id: 'privado', revision: 2, acceptedBy: 'Cliente actual', acceptedAt: '2026-09-21', quoteSnapshot: { notes: 'privado' } },
+  ] };
+  const result = publicQuote(quote);
+  assert.deepEqual(result.acceptance, { revision: 2, acceptedBy: 'Cliente actual', acceptedAt: '2026-09-21' });
+  assert.equal(JSON.stringify(result).includes('privado'), false);
+  assert.equal(result.acceptances, undefined);
+  assert.equal(publicQuote({ ...quote, revision: 3 }).acceptance, null);
+});

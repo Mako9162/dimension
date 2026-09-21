@@ -3,13 +3,12 @@ import base64
 import io
 import re
 import warnings
-import urllib.request
 from functools import lru_cache
 from pathlib import Path
 from PIL import Image, ImageOps
 
 Image.MAX_IMAGE_PIXELS = 16_000_000
-warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+warnings.simplefilter('error', Image.DecompressionBombWarning)
 MAX_BYTES = 5 * 1024 * 1024
 BACKEND = Path(__file__).resolve().parents[1]
 PUBLIC = BACKEND.parent / 'frontend/public'
@@ -21,9 +20,13 @@ def decode_image(value):
     raw = base64.b64decode(match[1], validate=True)
     if len(raw) > MAX_BYTES:
         raise ValueError('La imagen supera 5 MB')
+    with Image.open(io.BytesIO(raw)) as image:
+        if image.format not in ('PNG', 'JPEG', 'WEBP'):
+            raise ValueError('Formato de imagen no permitido')
+        image.verify()
     return raw
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=8)
 def fetch_image_bytes(value):
     if not value:
         return None
@@ -31,23 +34,20 @@ def fetch_image_bytes(value):
         if value.startswith('data:'):
             return decode_image(value)
             
-        if value.startswith(('http://', 'https://')):
-            try:
-                req = urllib.request.Request(value, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=2.5) as response:
-                    data = response.read()
-                    if len(data) <= MAX_BYTES:
-                        return data
-            except Exception:
-                pass
+        if not re.fullmatch(r'/(?:brand|uploads)/[A-Za-z0-9_-]+\.(?:png|jpe?g|webp)', value):
             return None
 
         clean_path = value.lstrip('/')
         for root in (PUBLIC, BACKEND):
             candidate = (root / clean_path).resolve()
-            if candidate.is_file() and candidate.stat().st_size <= MAX_BYTES:
-                return candidate.read_bytes()
-    except Exception:
+            if candidate.is_relative_to(root.resolve()) and candidate.is_file() and candidate.stat().st_size <= MAX_BYTES:
+                raw = candidate.read_bytes()
+                with Image.open(io.BytesIO(raw)) as image:
+                    if image.format not in ('PNG', 'JPEG', 'WEBP'):
+                        return None
+                    image.verify()
+                return raw
+    except (ValueError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         return None
     return None
 

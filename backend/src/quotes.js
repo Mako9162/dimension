@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { calculateTotals } from './money.js';
-import { quoteSchema, receiptSchema } from './validation.js';
+import { quoteSchema, receiptSchema, quoteAcceptanceSchema } from './validation.js';
 
 export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -9,7 +9,14 @@ export class HttpError extends Error {
 export const quoteInclude = {
   lines: { orderBy: { position: 'asc' } },
   receipts: { orderBy: { date: 'asc' } },
+  acceptances: { orderBy: { revision: 'desc' }, select: { revision: true, acceptedBy: true, acceptedAt: true } },
 };
+
+export const acceptanceConsent = 'Acepto los trabajos, el total y las condiciones de esta cotización.';
+export function currentAcceptance(q) {
+  const found = (q.acceptances || []).find(a => a.revision === q.revision);
+  return found ? { revision: found.revision, acceptedBy: found.acceptedBy, acceptedAt: found.acceptedAt } : null;
+}
 
 export async function createQuote(db, input) {
   const data = quoteSchema.parse(input);
@@ -91,6 +98,7 @@ export async function updateQuote(db, id, input) {
     return tx.quote.update({
       where: { id },
       data: {
+        revision: { increment: 1 }, status: 'BORRADOR', publicToken: null,
         customerId: customer.id, vehicleId: vehicle.id, observations: data.observations,
         terms: data.terms ?? company.terms, taxRate: data.taxRate, ...totals,
         companySnapshot: company,
@@ -146,9 +154,10 @@ export async function deleteReceipt(db, receiptId) {
 
 export async function deleteQuote(db, id) {
   return db.$transaction(async tx => {
-    const quote = await tx.quote.findUnique({ where: { id }, include: { receipts: { select: { id: true } } } });
+    const quote = await tx.quote.findUnique({ where: { id }, include: { receipts: { select: { id: true } }, acceptances: { select: { id: true }, take: 1 } } });
     if (!quote) throw new HttpError(404, 'Cotización no encontrada');
     if (quote.receipts.length) throw new HttpError(409, 'Esta cotización tiene abonos. Anula sus recibos antes de eliminarla.');
+    if (quote.acceptances.length) throw new HttpError(409, 'Esta cotización tiene una aceptación del cliente. Conserva el registro; puedes editarla como una nueva versión.');
     await tx.quote.delete({ where: { id } });
   }, { isolationLevel: 'Serializable' });
 }
@@ -157,9 +166,53 @@ export async function shareQuote(db, id) {
   return db.$transaction(async tx => {
     const existing = await tx.quote.findUnique({ where: { id } });
     if (!existing) throw new HttpError(404, 'Cotización no encontrada');
-    if (existing.publicToken) return existing;
-    return tx.quote.update({ where: { id }, data: { publicToken: randomBytes(32).toString('hex') } });
+    return tx.quote.update({ where: { id }, data: {
+      publicToken: existing.publicToken || randomBytes(32).toString('hex'),
+      status: existing.status === 'BORRADOR' ? 'ENVIADA' : existing.status,
+    } });
   }, { isolationLevel: 'Serializable' });
+}
+
+export async function setQuoteStatus(db, id, status) {
+  return db.$transaction(async tx => {
+    const existing = await tx.quote.findUnique({ where: { id } });
+    if (!existing) throw new HttpError(404, 'Cotización no encontrada');
+    if (existing.status === status) return existing;
+    // Una reapertura conserva la aceptación anterior, pero exige una nueva revisión.
+    const reopen = existing.status === 'APROBADA';
+    return tx.quote.update({ where: { id }, data: {
+      status,
+      ...(reopen ? { revision: { increment: 1 }, publicToken: null } : {}),
+      ...(status === 'BORRADOR' ? { publicToken: null } : {}),
+    } });
+  }, { isolationLevel: 'Serializable' });
+}
+
+export async function acceptQuote(db, token, input) {
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new HttpError(404, 'Cotización no disponible');
+  const data = quoteAcceptanceSchema.parse(input);
+  // Reintentar conflictos de escritura permite que dos clics simultáneos reciban
+  // la misma confirmación. Cada intento vuelve a comprobar token, revisión y estado.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await db.$transaction(async tx => {
+        const quote = await tx.quote.findUnique({ where: { publicToken: token }, include: quoteInclude });
+        if (!quote) throw new HttpError(404, 'Este enlace ya no está disponible. Solicita uno actualizado al taller.');
+        if (quote.revision !== data.revision) throw new HttpError(409, 'La cotización cambió. Revisa la versión actual antes de aceptarla.');
+        if (quote.status === 'APROBADA') return publicQuote(quote);
+        if (quote.status !== 'ENVIADA') throw new HttpError(409, 'La cotización aún no está habilitada para su aceptación. Contacta al taller.');
+        await tx.quoteAcceptance.create({ data: {
+          quoteId: quote.id, revision: quote.revision, acceptedBy: data.acceptedBy,
+          consentText: acceptanceConsent,
+          quoteSnapshot: JSON.parse(JSON.stringify(publicQuote(quote))),
+        } });
+        const accepted = await tx.quote.update({ where: { id: quote.id }, data: { status: 'APROBADA' }, include: quoteInclude });
+        return publicQuote(accepted);
+      }, { isolationLevel: 'Serializable' });
+    } catch (error) {
+      if (!['P2034', 'P2002'].includes(error.code) || attempt === 2) throw error;
+    }
+  }
 }
 
 export function publicQuote(q) {
@@ -170,7 +223,9 @@ export function publicQuote(q) {
 
   return {
     id: q.id,
-    number: q.number, date: q.date, status: q.status, observations: q.observations, terms: q.terms,
+    number: q.number, date: q.date, status: q.status, revision: q.revision,
+    acceptance: currentAcceptance(q), acceptanceConsent,
+    observations: q.observations, terms: q.terms,
     taxRate: q.taxRate, subtotal: q.subtotal, tax: q.tax, total: q.total,
     totalPaid, remainingBalance, paymentStatus,
     companySnapshot: q.companySnapshot,

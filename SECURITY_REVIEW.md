@@ -2,6 +2,8 @@
 
 Fecha: 2026-09-20.
 
+Actualización del flujo de aceptación: 2026-09-21.
+
 Esta revisión cubre el código del repositorio, la configuración de despliegue incluida y pruebas locales contra PostgreSQL de QA. No inspecciona secretos ni configuraciones privadas dentro de Vercel, Render o Neon.
 
 ## Cambios aplicados
@@ -26,10 +28,23 @@ Esta revisión cubre el código del repositorio, la configuración de despliegue
 - Bloqueo de cambios de cliente/vehículo en cotizaciones que ya tienen recibos.
 - Migraciones Prisma versionadas para PostgreSQL y despliegue seguro sin `db push` destructivo.
 
+## Revisión focalizada de aceptación (2026-09-21)
+
+- La apertura del enlace y las descargas son de lectura; solo un POST explícito puede aceptar.
+- Se validan token, versión, nombre y consentimiento. La API rechaza campos adicionales como total o estado enviados por el cliente.
+- La aceptación y el cambio a APROBADA comparten una transacción serializable. La unicidad por cotización y versión, junto con reintentos de conflictos, evita duplicados sin sobrescribir a quien aceptó primero.
+- La evidencia conserva una copia de la propuesta y sus condiciones. La proyección pública solo expone el nombre y fecha de la aceptación vigente, sin historial ni copias privadas.
+- Editar o reabrir una cotización aprobada invalida su enlace anterior. No se permite eliminar cotizaciones con aceptaciones desde la API.
+- La nueva ruta conserva CORS y la cabecera de mutación; limita a 30 intentos por minuto e IP.
+- Se corrigió la descarga de recibos desde la vista pública para usar la ruta delimitada por el token de la cotización.
+- Se restauró el bloqueo de descargas HTTP y rutas locales arbitrarias en las imágenes del PDF, presente antes de los últimos cambios del generador. Se mantienen el logo, la reducción de imágenes y el diseño vigente.
+- Verificación: 9 pruebas unitarias, 11 pruebas de integración contra PostgreSQL aislado, 3 pruebas Python y build. Incluye doble aceptación simultánea, edición concurrente, enlaces revocados, versión incorrecta, cabeceras, limitador y aislamiento de recibos. El flujo de aceptación se probó en navegador local en escritorio y móvil con datos ficticios.
+
 ## Riesgos residuales
 
 - El limitador de intentos vive en memoria. Es suficiente para una instancia pequeña de Render; si se escalan varias instancias conviene moverlo a Redis o similar.
 - Los enlaces públicos son tokens portadores. Deben compartirse solo con el cliente correcto y revocarse cuando ya no sean necesarios.
+- La aceptación pública registra un nombre declarado, no una identidad verificada. Cualquier persona que posea el enlace vigente puede aceptar una cotización enviada.
 - No hay roles ni permisos diferenciados. Todo usuario autenticado opera como administrador.
 - No hay recuperación de contraseña ni segundo factor.
 - No hay bitácora de auditoría por cada cambio.

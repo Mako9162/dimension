@@ -103,13 +103,15 @@ erDiagram
     Quote ||--|{ QuoteLine : contiene
     Item o|--o{ QuoteLine : referencia
     Quote ||--o{ Receipt : pagos
+    Quote ||--o{ QuoteAcceptance : aceptaciones
 ```
 
 - **Company**: datos del taller, logo, firma, contacto y términos. Sus datos se copian como snapshot en cada cotización.
 - **Customer / Vehicle**: un cliente puede tener varios vehículos. La FK compuesta `(vehicleId, customerId)` impide cotizar un vehículo de otro cliente incluso mediante SQL directo.
 - **Item / ItemCategory**: catálogo editable de repuestos, insumos y mano de obra. Los costos internos no se exponen en enlaces públicos ni PDF del cliente.
 - **Quote / QuoteLine**: cabecera transaccional con detalles congelados al momento de cotizar. Los totales se calculan en backend con Decimal.js y se descartan totales enviados por el navegador.
-- **Receipt**: pagos asociados a una cotización aprobada. Las transacciones serializables evitan sobrepagos simultáneos.
+- **Receipt**: pagos asociados a una cotización. Las transacciones serializables evitan sobrepagos simultáneos.
+- **QuoteAcceptance**: nombre declarado, fecha, consentimiento y copia de la propuesta aceptada. La pareja `(quoteId, revision)` es única; las aceptaciones anteriores se conservan al editar.
 - **User / Session**: acceso con usuario y contraseña; la sesión se guarda como hash y se entrega mediante cookie HttpOnly.
 
 ## API principal
@@ -144,8 +146,20 @@ Todas las rutas privadas requieren sesión iniciada. Las mutaciones requieren la
 | DELETE /api/quotes/receipts/:receiptId | Eliminar recibo |
 | GET /api/public/quotes/:token | Vista pública limitada |
 | GET /api/public/quotes/:token/pdf | PDF desde enlace público vigente |
+| POST /api/public/quotes/:token/accept | Aceptar la versión vigente y marcarla como aprobada |
+| GET /api/public/quotes/:token/receipts/:receiptId/pdf | Recibo perteneciente a la cotización compartida |
 
-Los enlaces públicos son de solo lectura y funcionan como tokens portadores: quien tenga el enlace puede ver esa cotización hasta que se revoque.
+Los enlaces públicos funcionan como tokens portadores: quien tenga el enlace puede ver esa cotización y aceptar su versión enviada hasta que se revoque. La aceptación requiere `revision`, `acceptedBy` y `confirmed: true`, además de la cabecera de mutación. Abrir el enlace o descargar el PDF nunca aprueba la cotización.
+
+## Aceptación por el cliente
+
+1. Guarda la cotización y pulsa **Compartir**. El borrador pasa a **Enviada** y se habilita su enlace público.
+2. Envía ese enlace al cliente. Al final de la propuesta podrá escribir su nombre, marcar el consentimiento y confirmar el total con IVA.
+3. El sistema registra la aceptación y cambia el estado a **Aprobada** en una sola transacción. El panel del taller se actualiza cada 30 segundos cuando está visible, y al volver a la ventana; no interrumpe la edición.
+
+El documento web y el listado privado identifican la aceptación del cliente. La administración puede consultar las fechas y nombres de versiones anteriores. La base de datos conserva también la propuesta completa aceptada. El nombre es declarado por quien posee el enlace; este flujo no verifica su identidad.
+
+Editar una cotización crea una nueva versión en borrador y revoca el enlace anterior: comparte el nuevo enlace para obtener una nueva aceptación. Reabrir una cotización aprobada también revoca su enlace y conserva el historial. Las cotizaciones con aceptaciones no se pueden eliminar desde la API. Si un enlace antiguo sigue en borrador, pulsa **Compartir** para habilitarlo. El PDF descargado por sí solo no incluye un formulario de aceptación: envía el enlace web.
 
 ## PDF
 
@@ -167,7 +181,7 @@ La revisión completa de esta actualización está en `SECURITY_REVIEW.md`. Punt
 - Las sesiones se guardan como SHA-256 del token y se envían en cookie HttpOnly, Secure en producción y SameSite=Lax.
 - CORS permite orígenes exactos y rechaza cualquier `Origin` no autorizado.
 - Vercel aplica CSP, `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy` y `Permissions-Policy`.
-- Las descargas PDF, login, cambio de contraseña y uploads tienen límites de frecuencia en memoria.
+- Las descargas PDF, login, cambio de contraseña, uploads y aceptación pública tienen límites de frecuencia en memoria.
 - Las imágenes para PDF no pueden ser URLs arbitrarias ni rutas locales; se validan tipo, peso y dimensiones.
 
 Limitaciones actuales: el limitador vive en memoria del proceso, no hay roles por usuario, no hay recuperación de contraseña, no hay auditoría histórica de cada mutación y los enlaces públicos siguen siendo válidos para cualquiera que posea el token hasta revocación.
@@ -180,11 +194,13 @@ Comandos usados para validar la actualización:
 npm run build
 npm test
 node --env-file=backend/tmp/qa.env backend/scripts/deploy.js
-node --env-file=backend/tmp/qa.env --test backend/test/integration.js
+node --env-file=backend/tmp/qa.env --test backend/test/integration.js backend/test/acceptance.integration.js
 python -m unittest discover -s backend/test -p "test_*.py"
 ```
 
 También se revisó visualmente el login, el tablero, la búsqueda/paginación, el formulario con totales automáticos, el aviso de cambios sin guardar, el menú móvil y los PDF renderizados a imagen.
+
+La actualización de aceptación (2026-09-21) se verificó con 9 pruebas unitarias, 11 pruebas de integración (incluidas concurrencia, revocación, versiones antiguas y recibos públicos) contra PostgreSQL aislado, 3 pruebas Python, migración sobre base limpia y compilación del frontend. En navegador se comprobó el formulario de aceptación en escritorio y móvil, la cancelación, la confirmación y la persistencia del estado tras recargar, usando únicamente datos ficticios locales.
 
 ## Ampliaciones recomendadas
 

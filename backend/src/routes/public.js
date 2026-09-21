@@ -1,9 +1,18 @@
 import { Router } from 'express';
 import { renderQuotePdf, renderReceiptPdf } from '../pdf.js';
-import { publicQuote, quoteInclude, HttpError } from '../quotes.js';
+import { acceptQuote, publicQuote, quoteInclude, HttpError } from '../quotes.js';
+import { createLimiter } from '../security.js';
 
 export function createPublicRouter(db) {
   const router = Router();
+  const allowAcceptance = createLimiter({ limit: 30, windowMs: 60000 });
+
+  router.post('/quotes/:token/accept', async (req, res) => {
+    if (!allowAcceptance(req.ip)) {
+      return res.set('Retry-After', '60').status(429).json({ error: 'Demasiados intentos. Espera un minuto y vuelve a intentar.' });
+    }
+    res.json(await acceptQuote(db, req.params.token, req.body));
+  });
 
   router.get('/quotes/:token', async (req, res) => {
     if (!/^[a-f0-9]{64}$/.test(req.params.token)) throw new HttpError(404, 'Cotización no disponible');

@@ -66,6 +66,7 @@ export default function QuoteForm({ customers, vehicles, items, categoriesList =
   }
 
   return <form onSubmit={save} className="quote-form">
+    {isEditing && (editingQuote.publicToken || editingQuote.status === 'APROBADA') && <p className="revision-notice" role="note">Al guardar se creará una nueva versión en borrador y se retirará el enlace anterior. Comparte la propuesta actualizada para que el cliente vuelva a aceptarla; su aceptación anterior quedará en el historial.</p>}
     <section className="panel"><div className="section-title"><span className="step">01</span><div><h2>Cliente y vehículo</h2><p>Selecciona a quién va dirigida la cotización.</p></div></div>
       <div className="grid gap-5 md:grid-cols-2"><label>Cliente<select required value={customerId} onChange={e => { setCustomer(e.target.value); setVehicle(''); }}><option value="">Seleccionar cliente</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name} · {c.taxId}</option>)}</select></label><label>Vehículo<select required value={vehicleId} disabled={!customerId} onChange={e => setVehicle(e.target.value)}><option value="">Seleccionar vehículo</option>{vehicles.filter(v => v.customerId === customerId).map(v => <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model}</option>)}</select></label></div>
       {!customers.length && <p className="hint">Registra un cliente y su vehículo en las secciones correspondientes.</p>}

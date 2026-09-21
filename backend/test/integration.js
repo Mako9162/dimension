@@ -53,7 +53,7 @@ test('PostgreSQL: creación, FK, rollback, snapshots, privacidad y revocación',
     const count = await db.quote.count();
     // FK inválida en la segunda línea: comprueba rollback tras INSERT de cabecera.
     await assert.rejects(db.$transaction(async tx => {
-      const { id, number, lines, receipts, ...header } = quote;
+      const { id, number, lines, receipts, acceptances, ...header } = quote;
       const copy = await tx.quote.create({ data: header });
       await tx.quoteLine.create({ data: { quoteId: copy.id, position: 0, name: 'Válido', category: 'INSUMO', quantity: 1, unitPrice: 1, lineTotal: 1 } });
       await tx.quoteLine.create({ data: { quoteId: copy.id, itemId: randomUUID(), position: 1, name: 'Inválido', category: 'INSUMO', quantity: 1, unitPrice: 1, lineTotal: 1 } });

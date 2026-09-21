@@ -2,12 +2,24 @@ import { useState } from 'react';
 import { money, downloadPdf, assetUrl } from './api';
 import ReceiptModal from './components/ReceiptModal';
 import { companyLogo } from './brand';
+import QuoteAcceptance from './components/QuoteAcceptance';
 
-export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt, isPublic = false }) {
+export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt, isPublic = false, publicToken }) {
   const company = q.companySnapshot || {};
   const customer = q.customerSnapshot || {};
   const vehicle = q.vehicleSnapshot || {};
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+  const [downloadingReceipt, setDownloadingReceipt] = useState(null);
+
+  async function downloadReceipt(receipt) {
+    setDownloadError(''); setDownloadingReceipt(receipt.id);
+    try {
+      const path = isPublic ? `/public/quotes/${publicToken}/receipts/${receipt.id}/pdf` : `/quotes/receipts/${receipt.id}/pdf`;
+      await downloadPdf(path, receipt.number);
+    } catch (e) { setDownloadError(e.message); }
+    finally { setDownloadingReceipt(null); }
+  }
 
   const ownerStr = company.ownerName ? ` · Representante: ${company.ownerName}` : '';
   const companyDisplayName = `${company.name || 'Taller Dimensión'}`;
@@ -47,6 +59,8 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
           </div>
         </div>
       </header>
+
+      <QuoteAcceptance quote={q} isPublic={isPublic}/>
 
       <section className="grid gap-8 sm:grid-cols-2 my-8">
         <div>
@@ -109,6 +123,7 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
 
       {/* Historial de Recibos y Abonos */}
       <section className="payment-receipts-section mt-8 pt-6 border-t border-zinc-200 print-hidden">
+        {downloadError && <p role="alert" className="error">{downloadError}</p>}
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
           <div>
             <h3 className="text-base font-bold text-zinc-800 inline-flex items-center gap-2">
@@ -159,9 +174,10 @@ export default function QuoteDocument({ quote: q, onAddReceipt, onDeleteReceipt,
                         <button
                           className="secondary"
                           style={{ padding: '4px 8px', fontSize: '11px' }}
-                          onClick={() => downloadPdf(`/quotes/receipts/${r.id}/pdf`, `Recibo-${r.number}`)}
+                          disabled={downloadingReceipt !== null}
+                          onClick={() => downloadReceipt(r)}
                         >
-                          Descargar PDF 📄
+                          {downloadingReceipt === r.id ? 'Descargando…' : 'Descargar PDF 📄'}
                         </button>
                         {!isPublic && onDeleteReceipt && (
                           <button

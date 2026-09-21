@@ -46,6 +46,12 @@ export const quoteSchema = z.object({
   })).min(1).max(100),
 });
 
+export const quoteAcceptanceSchema = z.object({
+  revision: z.number().int().min(1).max(2147483647),
+  acceptedBy: z.string().trim().min(2, 'Ingresa tu nombre completo').max(120),
+  confirmed: z.literal(true, { errorMap: () => ({ message: 'Debes aceptar los trabajos, el total y las condiciones' }) }),
+}).strict();
+
 export const receiptSchema = z.object({
   amount: z.coerce.number().finite().int('Ingresa el abono en pesos completos').positive('El monto del abono debe ser mayor a cero').max(100000000),
   paymentMethod: paymentMethod.default('EFECTIVO'),
